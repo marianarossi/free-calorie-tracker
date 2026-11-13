@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Meu Dia</title>
+<meta name="description" content="Contador de calorias e nutrientes com leitor de código de barras e tracker de peso.">
+<meta name="theme-color" content="#2f7d4f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Meu Dia">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+
+  <!-- ===== DIÁRIO ===== -->
+  <section id="view-diary">
+    <header class="top">
+      <div class="datenav">
+        <button id="prevDay" class="round" aria-label="Dia anterior">‹</button>
+        <button id="dateLabel" class="d">Hoje</button>
+        <button id="nextDay" class="round" aria-label="Próximo dia">›</button>
+      </div>
+      <button class="round" id="settingsBtn" aria-label="Configurações">⚙︎</button>
+    </header>
+
+    <div class="card">
+      <div class="hero">
+        <div class="ring">
+          <svg width="118" height="118" viewBox="0 0 118 118">
+            <circle cx="59" cy="59" r="50" fill="none" stroke="var(--line)" stroke-width="11"/>
+            <circle id="ringFill" cx="59" cy="59" r="50" fill="none" stroke="var(--kcal)" stroke-width="11" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+          </svg>
+          <div class="c"><div class="big" id="kcalBig">0</div><div class="small">kcal</div></div>
+        </div>
+        <div class="side"><div class="left" id="kcalLeft"></div></div>
+      </div>
+      <div class="bars" id="bars"></div>
+    </div>
+
+    <div id="recentsWrap" class="hidden">
+      <div class="sec-title">Recentes</div>
+      <div class="chips" id="recents"></div>
+    </div>
+
+    <div id="meals"></div>
+  </section>
+
+  <!-- ===== PESO ===== -->
+  <section id="view-weight" class="hidden">
+    <header class="top">
+      <h1>Peso</h1>
+      <button class="round" id="settingsBtn2" aria-label="Configurações">⚙︎</button>
+    </header>
+    <div class="card">
+      <div class="wstats" id="wstats"></div>
+      <div class="seg" id="wRange">
+        <button data-r="30" class="on">30 dias</button><button data-r="90">90 dias</button><button data-r="365">1 ano</button><button data-r="0">Tudo</button>
+      </div>
+      <div id="wchart"></div>
+    </div>
+    <button class="btn full" id="addWeightBtn">＋ Registrar peso</button>
+    <div class="sec-title">Registros</div>
+    <div class="card" id="wlist"></div>
+  </section>
+
+  <div class="note" id="note"></div>
+</div>
+
+<!-- barra inferior -->
+<nav class="dock">
+  <div class="in" id="dockDiary">
+    <button class="btn" id="scanBtn">📷 Escanear</button>
+    <button class="btn sec" id="searchBtn" aria-label="Buscar alimento">🔍</button>
+  </div>
+  <div class="tabs">
+    <button data-tab="diary" class="on"><span>🍽️</span>Diário</button>
+    <button data-tab="weight"><span>⚖️</span>Peso</button>
+  </div>
+</nav>
+
+<input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="importInput" accept="application/json,.json" class="hidden">
+
+<!-- folha (modal inferior) -->
+<div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
+
+<!-- scanner em tela cheia -->
+<div class="scanner hidden" id="scanner">
+  <video id="video" playsinline muted></video>
+  <div class="frame"><div class="laser"></div></div>
+  <div class="scan-top">
+    <button class="round dark" id="scanClose" aria-label="Fechar">✕</button>
+    <button class="round dark hidden" id="torchBtn" aria-label="Lanterna">🔦</button>
+  </div>
+  <div class="scan-msg" id="scanMsg">Aponte para o código de barras</div>
+  <div class="scan-bottom">
+    <button class="btn sec" id="scanType">Digitar código</button>
+    <button class="btn sec" id="scanPhoto">Usar foto</button>
+  </div>
+</div>
+
+<script src="vendor/zxing.min.js" defer></script>
+<script src="foods.js" defer></script>
+<script src="app.js" defer></script>
+</body>
+</html>
