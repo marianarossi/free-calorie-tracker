@@ -64,4 +64,11 @@ window.GENERIC_FOODS = [
   ["Refrigerante de cola",            42, 0, 10.6, 10.6, 0, 0, 0, 0,           [["1 lata", 330]]],
   ["Cerveja",                         43, 0.5, 3.6, 0, 0, 0, 0, 0,             [["1 imperial", 200], ["1 garrafa", 330]]],
   ["Vinho tinto",                     85, 0.1, 2.6, 0.6, 0, 0, 0, 0,           [["1 copo", 150]]],
+  // Novos itens sempre no FINAL: o id é "gen-" + posição, e inserir no meio quebra registros antigos.
+  // Lidl Milbona — Open Food Facts 01640717 (valores por 100 ml ≈ 100 g)
+  ["Milbona High Protein drink chocolate (Lidl)", 67, 10.6, 5.3, 5.1, 0.3, 0.2, 0.4, 0.15, [["1 garrafa (332 ml)", 332]]],
+  // Lidl Milbona — Open Food Facts 4056489406662 (vendido em PT; por 100 ml ≈ 100 g)
+  ["Milbona High Protein drink baunilha (Lidl)",  65, 10.6, 5.2, 5.2, 0.2, 0.2, 0,   0.255, [["1 garrafa (330 ml)", 330]]],
+  // Continente — EAN 5601312181767, emb. 400 g. Open Food Facts só tem kcal/proteína/hidratos/gordura (null = sem dado)
+  ["Pizza Fresca 4 Queijos (Continente)",        259, 14.0, 28.4, null, 9.7, null, null, null, [["1/4 pizza", 100], ["1/2 pizza", 200], ["pizza inteira", 400]]],
 ];

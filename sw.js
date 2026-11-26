@@ -1,6 +1,8 @@
 // Service worker: guarda o app pra abrir rápido e offline. A API do Open Food Facts nunca é guardada aqui.
-const CACHE = "meudia-v1";
-const SHELL = ["./", "index.html", "style.css", "app.js", "foods.js", "vendor/zxing.min.js", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png"];
+const CACHE = "meudia-v3";
+const SHELL = ["./", "index.html", "style.css", "foods.js",
+  "js/core.js", "js/food.js", "js/diary.js", "js/scanner.js", "js/weight.js", "js/progress.js", "js/settings.js", "js/sync.js", "js/main.js",
+  "vendor/zxing.min.js", "vendor/fonts/bricolage-latin.woff2", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png"];
 self.addEventListener("install", e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).then(() => self.skipWaiting())); });
 self.addEventListener("activate", e => { e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE).map(k => caches.delete(k)))).then(() => self.clients.claim())); });
 self.addEventListener("fetch", e => {

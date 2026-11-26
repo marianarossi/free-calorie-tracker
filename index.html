@@ -4,108 +4,192 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Meu Dia</title>
-<meta name="description" content="Contador de calorias e nutrientes com leitor de código de barras e tracker de peso.">
-<meta name="theme-color" content="#2f7d4f">
+<meta name="description" content="Contador de calorias e nutrientes com leitor de código de barras, receitas, água e tracker de peso.">
+<meta name="theme-color" content="#F3EEE4">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="Meu Dia">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preload" href="vendor/fonts/bricolage-latin.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+<!-- ícones (traço 2px, 24×24) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.6-3.6"/></symbol>
+    <symbol id="i-scan" viewBox="0 0 24 24"><path d="M3 7.5V5a2 2 0 0 1 2-2h2.5M16.5 3H19a2 2 0 0 1 2 2v2.5M21 16.5V19a2 2 0 0 1-2 2h-2.5M7.5 21H5a2 2 0 0 1-2-2v-2.5M7 8v8M10.3 8v8M13.7 8v8M17 8v8"/></symbol>
+    <symbol id="i-sliders" viewBox="0 0 24 24"><path d="M4 6h8M16 6h4M4 12h2M10 12h10M4 18h10M18 18h2"/><circle cx="14" cy="6" r="2"/><circle cx="8" cy="12" r="2"/><circle cx="16" cy="18" r="2"/></symbol>
+    <symbol id="i-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-up" viewBox="0 0 24 24"><path d="m18 15-6-6-6 6"/></symbol>
+    <symbol id="i-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><path d="M5 12h.01M12 12h.01M19 12h.01" stroke-width="3.2"/></symbol>
+    <symbol id="i-star" viewBox="0 0 24 24"><path d="m12 3.2 2.7 5.5 6 .9-4.35 4.25 1.03 6L12 17l-5.38 2.85 1.03-6L3.3 9.6l6-.9z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4"/></symbol>
+    <symbol id="i-bowl" viewBox="0 0 24 24"><path d="M3 12h18a9 8 0 0 1-18 0z"/><path d="M8.5 8c0-1.4 1-1.8 1-3M12.5 8c0-1.4 1-1.8 1-3M16.5 8c0-1.4 1-1.8 1-3"/></symbol>
+    <symbol id="i-apple" viewBox="0 0 24 24"><path d="M12 7.5c-1.4-1.1-3.4-1.4-4.9-.7C4.6 8 4.2 11 5.1 14c.9 3 2.9 6.5 4.9 6.5 1 0 1.3-.5 2-.5s1 .5 2 .5c2 0 4-3.5 4.9-6.5.9-3 .5-6-2-7.2-1.5-.7-3.5-.4-4.9.7z"/><path d="M12 7.5c0-2 1-3.6 3-4.2"/></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/></symbol>
+    <symbol id="i-cookie" viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 3 3 0 0 1-3.5-3A3 3 0 0 1 14 5.5 3 3 0 0 1 12 3z"/><path d="M8.5 10.5h.01M15 15h.01M10 16h.01M12 12.5h.01" stroke-width="2.6"/></symbol>
+    <symbol id="i-book" viewBox="0 0 24 24"><path d="M5 4.5A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5z"/><path d="M5 19.5A1.5 1.5 0 0 0 6.5 21H19M9 7.5h6"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M3 20.5h18M6.5 16.5v-4M11 16.5V6M15.5 16.5v-7M20 16.5v-2.5"/></symbol>
+    <symbol id="i-scale" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 10a5.5 5.5 0 0 1 8 0M12 10.5l1.5-2"/></symbol>
+    <symbol id="i-drop" viewBox="0 0 24 24"><path d="M12 3s-6.5 6.8-6.5 11.2a6.5 6.5 0 0 0 13 0C18.5 9.8 12 3 12 3z"/></symbol>
+    <symbol id="i-flame" viewBox="0 0 24 24"><path d="M12 3c1 3.5 5.5 5.6 5.5 10.6a5.5 5.5 0 0 1-11 0c0-2.6 1.6-4.2 2.6-5.1 0 2 1 3.2 2.1 3.2 0-3-1-5.6.8-8.7z"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></symbol>
+    <symbol id="i-copy" viewBox="0 0 24 24"><rect x="8" y="8" width="12" height="12" rx="2.5"/><path d="M16 8V6a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h2"/></symbol>
+    <symbol id="i-layers" viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5z"/><path d="m3 12.5 9 5 9-5M3 16.5l9 5 9-5"/></symbol>
+    <symbol id="i-pot" viewBox="0 0 24 24"><path d="M2 10h20M4.5 10v7a3 3 0 0 0 3 3h9a3 3 0 0 0 3-3v-7M9 6.5c0-1 1-1.5 1-2.5M14 6.5c0-1 1-1.5 1-2.5"/></symbol>
+    <symbol id="i-bolt" viewBox="0 0 24 24"><path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/></symbol>
+    <symbol id="i-torch" viewBox="0 0 24 24"><path d="M7 2.5h10v4l-2.5 4v10a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-10L7 6.5zM7 6.5h10M12 13.5v2"/></symbol>
+    <symbol id="i-keyboard" viewBox="0 0 24 24"><rect x="2.5" y="6" width="19" height="12" rx="2.5"/><path d="M6.5 10h.01M10 10h.01M14 10h.01M17.5 10h.01M7.5 14h9" stroke-width="2.2"/></symbol>
+    <symbol id="i-image" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="3.5"/><circle cx="9" cy="9" r="2"/><path d="m21 15-5-5L5 21"/></symbol>
+    <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3.5v11.5M7 10.5l5 5 5-5M4.5 20.5h15"/></symbol>
+    <symbol id="i-upload" viewBox="0 0 24 24"><path d="M12 15.5V4M7 8.5l5-5 5 5M4.5 20.5h15"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="M12 20.5h8.5M16.5 3.5a2.1 2.1 0 0 1 3 3L7.5 18.5l-4 1 1-4z"/></symbol>
+    <symbol id="i-refresh" viewBox="0 0 24 24"><path d="M20.5 12a8.5 8.5 0 1 1-2.6-6.1L20.5 8.5M20.5 3.5v5h-5"/></symbol>
+    <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r=".8"/></symbol>
+    <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5v9L12 21l9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></symbol>
+    <symbol id="i-calc" viewBox="0 0 24 24"><rect x="4.5" y="2.5" width="15" height="19" rx="3"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18.5h7" stroke-width="2.2"/></symbol>
+  </defs>
+</svg>
+
 <div class="wrap">
 
   <!-- ===== DIÁRIO ===== -->
   <section id="view-diary">
     <header class="top">
-      <div class="datenav">
-        <button id="prevDay" class="round" aria-label="Dia anterior">‹</button>
-        <button id="dateLabel" class="d">Hoje</button>
-        <button id="nextDay" class="round" aria-label="Próximo dia">›</button>
+      <button class="titlebtn" id="dateBtn" aria-label="Escolher data"><small id="dateSub"></small><h1 id="dateLabel">Hoje</h1></button>
+      <input type="date" id="datePick" class="vh" tabindex="-1" aria-hidden="true">
+      <div class="top-actions">
+        <button class="pill hidden" id="todayBtn">Hoje</button>
+        <button class="round" id="quickBtn" aria-label="Adição rápida (só calorias)"><svg class="ic"><use href="#i-bolt"/></svg></button>
       </div>
-      <button class="round" id="settingsBtn" aria-label="Configurações">⚙︎</button>
     </header>
 
-    <div class="card">
-      <div class="hero">
+    <div class="week" id="week"></div>
+
+    <button class="searchbar" id="searchBtn"><svg class="ic"><use href="#i-search"/></svg><span>Buscar alimento, marca, receita…</span></button>
+
+    <div class="hero" id="hero">
+      <div class="hero-top">
         <div class="ring">
-          <svg width="118" height="118" viewBox="0 0 118 118">
-            <circle cx="59" cy="59" r="50" fill="none" stroke="var(--line)" stroke-width="11"/>
-            <circle id="ringFill" cx="59" cy="59" r="50" fill="none" stroke="var(--kcal)" stroke-width="11" stroke-linecap="round" stroke-dasharray="314.16" stroke-dashoffset="314.16"/>
+          <svg viewBox="0 0 140 140" aria-hidden="true">
+            <circle class="trk" cx="70" cy="70" r="60"/>
+            <circle class="seg" id="segK" cx="70" cy="70" r="60" style="stroke:var(--lime)"/>
+            <circle class="seg" id="segP" cx="70" cy="70" r="60" style="stroke:var(--prot)"/>
+            <circle class="seg" id="segC" cx="70" cy="70" r="60" style="stroke:var(--carb)"/>
+            <circle class="seg" id="segG" cx="70" cy="70" r="60" style="stroke:var(--gord)"/>
           </svg>
-          <div class="c"><div class="big" id="kcalBig">0</div><div class="small">kcal</div></div>
+          <div class="c"><b id="kcalBig">0</b><span id="kcalLbl">kcal restantes</span></div>
         </div>
-        <div class="side"><div class="left" id="kcalLeft"></div></div>
+        <div class="hero-side">
+          <div><span>Meta</span><b id="hGoal">—</b></div>
+          <div><span>Comido</span><b id="hEaten">—</b></div>
+          <div><span>Do dia</span><b id="hPct">—</b></div>
+        </div>
       </div>
-      <div class="bars" id="bars"></div>
+      <div class="macros" id="macros"></div>
+      <button class="more" id="moreNuts"></button>
+      <div class="bars hidden" id="bars"></div>
     </div>
 
-    <div id="recentsWrap" class="hidden">
-      <div class="sec-title">Recentes</div>
-      <div class="chips" id="recents"></div>
+    <div class="card water" id="water"></div>
+
+    <div id="shortcutsWrap" class="hidden">
+      <div class="sec-title">Atalhos</div>
+      <div class="chips" id="shortcuts"></div>
     </div>
 
+    <div id="dayEmpty"></div>
     <div id="meals"></div>
+    <div id="nag"></div>
+  </section>
+
+  <!-- ===== PROGRESSO ===== -->
+  <section id="view-progress" class="hidden">
+    <header class="top"><div class="titlebtn"><small>como você está indo</small><h1>Progresso</h1></div></header>
+    <div class="seg big" id="pRange"><button data-r="7">7 dias</button><button data-r="30" class="on">30 dias</button><button data-r="90">90 dias</button></div>
+    <div class="tiles" id="ptiles"></div>
+    <div class="card"><div class="ch">Calorias por dia</div><div id="pchart" class="chart"></div></div>
+    <div class="card dark-card" id="ptdee"></div>
+    <div class="card"><div class="ch">De onde vêm as calorias</div><div id="pmacros"></div></div>
+    <div class="card"><div class="ch">Mais calorias no período</div><div id="ptop"></div></div>
+    <div class="card" id="pwaterWrap"><div class="ch">Água</div><div id="pwater"></div></div>
   </section>
 
   <!-- ===== PESO ===== -->
   <section id="view-weight" class="hidden">
-    <header class="top">
-      <h1>Peso</h1>
-      <button class="round" id="settingsBtn2" aria-label="Configurações">⚙︎</button>
-    </header>
-    <div class="card">
+    <header class="top"><div class="titlebtn"><small>sua tendência</small><h1>Peso</h1></div></header>
+    <div class="hero weight-hero">
       <div class="wstats" id="wstats"></div>
+      <div id="wprog"></div>
+    </div>
+    <div id="wforecast"></div>
+    <div class="card">
       <div class="seg" id="wRange">
         <button data-r="30" class="on">30 dias</button><button data-r="90">90 dias</button><button data-r="365">1 ano</button><button data-r="0">Tudo</button>
       </div>
-      <div id="wchart"></div>
+      <div id="wchart" class="chart"></div>
     </div>
-    <button class="btn full" id="addWeightBtn">＋ Registrar peso</button>
+    <button class="btn full" id="addWeightBtn"><svg class="ic"><use href="#i-plus"/></svg> Registrar peso</button>
     <div class="sec-title">Registros</div>
     <div class="card" id="wlist"></div>
   </section>
-
-  <div class="note" id="note"></div>
 </div>
 
 <!-- barra inferior -->
-<nav class="dock">
-  <div class="in" id="dockDiary">
-    <button class="btn" id="scanBtn">📷 Escanear</button>
-    <button class="btn sec" id="searchBtn" aria-label="Buscar alimento">🔍</button>
-  </div>
+<nav class="dock" aria-label="Navegação">
   <div class="tabs">
-    <button data-tab="diary" class="on"><span>🍽️</span>Diário</button>
-    <button data-tab="weight"><span>⚖️</span>Peso</button>
+    <button data-tab="diary" class="on"><svg class="ic"><use href="#i-book"/></svg><span>Diário</span></button>
+    <button data-tab="progress"><svg class="ic"><use href="#i-chart"/></svg><span>Progresso</span></button>
+    <button class="fab" id="scanBtn" aria-label="Escanear código de barras"><svg class="ic"><use href="#i-scan"/></svg></button>
+    <button data-tab="weight"><svg class="ic"><use href="#i-scale"/></svg><span>Peso</span></button>
+    <button id="settingsTab"><svg class="ic"><use href="#i-sliders"/></svg><span>Ajustes</span></button>
   </div>
 </nav>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
 
 <input type="file" id="photoInput" accept="image/*" capture="environment" class="hidden">
 <input type="file" id="importInput" accept="application/json,.json" class="hidden">
 
 <!-- folha (modal inferior) -->
-<div class="veil" id="veil"><div class="sheet" id="sheet"></div></div>
+<div class="veil" id="veil"><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 
 <!-- scanner em tela cheia -->
 <div class="scanner hidden" id="scanner">
   <video id="video" playsinline muted></video>
-  <div class="frame"><div class="laser"></div></div>
+  <div class="frame"><i class="c1"></i><i class="c2"></i><i class="c3"></i><i class="c4"></i><div class="laser"></div></div>
   <div class="scan-top">
-    <button class="round dark" id="scanClose" aria-label="Fechar">✕</button>
-    <button class="round dark hidden" id="torchBtn" aria-label="Lanterna">🔦</button>
+    <button class="round dark" id="scanClose" aria-label="Fechar"><svg class="ic"><use href="#i-x"/></svg></button>
+    <button class="round dark hidden" id="torchBtn" aria-label="Lanterna"><svg class="ic"><use href="#i-torch"/></svg></button>
   </div>
   <div class="scan-msg" id="scanMsg">Aponte para o código de barras</div>
   <div class="scan-bottom">
-    <button class="btn sec" id="scanType">Digitar código</button>
-    <button class="btn sec" id="scanPhoto">Usar foto</button>
+    <button class="btn glass" id="scanType"><svg class="ic"><use href="#i-keyboard"/></svg> Digitar código</button>
+    <button class="btn glass" id="scanPhoto"><svg class="ic"><use href="#i-image"/></svg> Usar foto</button>
   </div>
 </div>
 
 <script src="vendor/zxing.min.js" defer></script>
 <script src="foods.js" defer></script>
-<script src="app.js" defer></script>
+<script src="js/core.js" defer></script>
+<script src="js/food.js" defer></script>
+<script src="js/diary.js" defer></script>
+<script src="js/scanner.js" defer></script>
+<script src="js/weight.js" defer></script>
+<script src="js/progress.js" defer></script>
+<script src="js/settings.js" defer></script>
+<script src="js/sync.js" defer></script>
+<script src="js/main.js" defer></script>
 </body>
 </html>
