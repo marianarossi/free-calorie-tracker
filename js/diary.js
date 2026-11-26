@@ -19,7 +19,8 @@ function renderDiary(){
   const byDate = groupByDate(eatenEntries());
   const all = dayEntries(curDate), eaten = all.filter(e => !e.planned), planned = all.filter(e => e.planned);
   $("#dateLabel").textContent = dateLabel(curDate);
-  $("#dateSub").textContent = fmtDay(curDate, {weekday: "long", day: "numeric", month: "long"});
+  const cyc = cycleInfo(curDate);
+  $("#dateSub").textContent = fmtDay(curDate, {weekday: "long", day: "numeric", month: "long"}) + (cyc && cyc.day <= 120 ? ` · dia ${cyc.day} do ciclo` : "");
   $("#todayBtn").classList.toggle("hidden", curDate === today());
   renderStreak();
   renderWeek(byDate);

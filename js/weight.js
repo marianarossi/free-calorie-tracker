@@ -76,11 +76,14 @@ function chartSVG(all){
   for (let k = Math.ceil(lo / step) * step; k <= hi; k += step) grid += `<line x1="${L}" x2="${W - R}" y1="${y(k)}" y2="${y(k)}" stroke="var(--line)"/><text x="${L - 5}" y="${y(k) + 3}" text-anchor="end">${fmt(k, step < 1 ? 1 : 0)}</text>`;
   const xl = `<text x="${L}" y="${H - 6}">${fmtDay(list[0].date)}</text><text x="${W - R}" y="${H - 6}" text-anchor="end">${fmtDay(list[list.length - 1].date)}</text>`;
   const gl = goal && goal >= lo && goal <= hi ? `<line x1="${L}" x2="${W - R}" y1="${y(goal)}" y2="${y(goal)}" stroke="var(--accent)" stroke-dasharray="4 4"/><text x="${W - R}" y="${y(goal) - 4}" text-anchor="end" style="fill:var(--accent)">meta</text>` : "";
+  const xd = d => clamp(x(d), L, W - R), lastD = list[list.length - 1].date;
+  const bands = S.periods.filter(p => periodEnd(p) >= list[0].date && p.start <= lastD)
+    .map(p => { const a = xd(p.start < list[0].date ? list[0].date : p.start), b = xd(addDays(periodEnd(p) > lastD ? lastD : periodEnd(p), 1)); return `<rect x="${a}" y="${T}" width="${Math.max(3, b - a)}" height="${H - T - B}" fill="var(--per)" opacity=".13" rx="3"/>`; }).join("");
   const pts = list.map(w => `<circle cx="${x(w.date)}" cy="${y(w.kg)}" r="2.8" fill="var(--card)" stroke="var(--prot)" stroke-width="1.6"/>`).join("");
   const lp = avg.map(a => `${x(a.date)},${y(a.kg)}`);
   const area = `<polygon fill="url(#wgrad)" points="${x(avg[0].date)},${H - B} ${lp.join(" ")} ${x(avg[avg.length - 1].date)},${H - B}"/>`;
   const line = `<polyline fill="none" stroke="var(--prot)" stroke-width="2.6" stroke-linejoin="round" stroke-linecap="round" points="${lp.join(" ")}"/>`;
-  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de peso"><defs><linearGradient id="wgrad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--prot)" stop-opacity=".22"/><stop offset="1" stop-color="var(--prot)" stop-opacity="0"/></linearGradient></defs>${grid}${area}${gl}${line}${pts}${xl}</svg><div class="note" style="margin:4px 0 0">Pontos = pesagens · linha = média de 7 dias</div>`;
+  return `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfico de peso"><defs><linearGradient id="wgrad" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--prot)" stop-opacity=".22"/><stop offset="1" stop-color="var(--prot)" stop-opacity="0"/></linearGradient></defs>${bands}${grid}${area}${gl}${line}${pts}${xl}</svg><div class="note" style="margin:4px 0 0">Pontos = pesagens · linha = média de 7 dias${bands ? ` · <span class="perleg"></span> menstruação` : ""}</div>`;
 }
 $("#wRange").onclick = e => { const r = e.target.closest("[data-r]"); if (r){ wRange = +r.dataset.r; renderWeight(); } };
 $("#addWeightBtn").onclick = () => weightSheet();

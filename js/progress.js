@@ -7,7 +7,7 @@ const TDEE_WINDOW = 28;
 
 /* ---------- calendário de hábitos ---------- */
 let calMonth = today().slice(0, 7); // "AAAA-MM"
-const HABITS = [["train", "Treino", "--lime"], ["water", "Água", "--water"], ["log", "Registro", "--kcal"]];
+const HABITS = [["train", "Treino", "--lime"], ["water", "Água", "--water"], ["log", "Registro", "--carb"]];
 function renderCal(){
   const t = today(), [y, m] = calMonth.split("-").map(Number), first = `${calMonth}-01`;
   const days = new Date(y, m, 0).getDate(), lead = (parseYmd(first).getDay() + 6) % 7, logged = loggedDates();
@@ -17,7 +17,8 @@ function renderCal(){
   for (let d = 1; d <= days; d++){
     const ds = `${calMonth}-${pad(d)}`, fut = ds > t, h = habitDay(ds, logged), n = HABITS.filter(x => h[x[0]]).length;
     if (!fut && n === 3) full++; if (!fut && n) any++;
-    cells += `<button class="cd${n === 3 ? " all" : ""}${ds === t ? " today" : ""}" data-cday="${ds}"${fut ? " disabled" : ""} aria-label="${fmtDay(ds, {day: "numeric", month: "long"})}: ${HABITS.filter(x => h[x[0]]).map(x => x[1]).join(", ") || "nada"}">
+    const per = onPeriod(ds), pred = predictedPeriod(ds);
+    cells += `<button class="cd${n === 3 ? " all" : ""}${ds === t ? " today" : ""}${per ? " per" : ""}${pred ? " per-pred" : ""}" data-cday="${ds}"${fut ? " disabled" : ""} aria-label="${fmtDay(ds, {day: "numeric", month: "long"})}: ${HABITS.filter(x => h[x[0]]).map(x => x[1]).join(", ") || "nada"}${per ? ", menstruação" : ""}${pred ? ", menstruação prevista" : ""}">
       <b>${d}</b><span class="dots">${HABITS.map(([k]) => `<i class="${h[k] ? "on" : ""}" data-h="${k}"></i>`).join("")}</span></button>`;
   }
   const stat = k => { const s = streaks(habitDates(k)); return s; };
@@ -25,16 +26,68 @@ function renderCal(){
   const trainWeek = Object.keys(S.train).filter(d => d >= wkStart && d <= t).length, trainMonth = Object.keys(S.train).filter(d => d.startsWith(t.slice(0, 7))).length;
   const sLog = stat("log"), sWater = stat("water");
   $("#pcal").innerHTML = `<div class="ch calh"><span>Calendário de hábitos</span><div class="calnav"><button class="round sm ghost" id="calPrev" aria-label="Mês anterior">${icon("left")}</button><b>${esc(title)}</b><button class="round sm ghost" id="calNext" aria-label="Próximo mês"${calMonth >= t.slice(0, 7) ? " disabled" : ""}>${icon("right")}</button></div></div>
-    <div class="legend3">${HABITS.map(([k, l]) => `<span><i data-h="${k}"></i>${l}</span>`).join("")}<span class="allk"><i></i>os 3</span></div>
+    <div class="legend3">${HABITS.map(([k, l]) => `<span><i data-h="${k}"></i>${l}</span>`).join("")}<span class="allk"><i></i>os 3</span><span class="perk"><i></i>menstruação</span></div>
     <div class="calgrid">${["S", "T", "Q", "Q", "S", "S", "D"].map(w => `<span class="wd">${w}</span>`).join("")}${cells}</div>
     <div class="calsum">${any ? `${full} ${full === 1 ? "dia" : "dias"} com os 3 hábitos neste mês` : "Nenhum hábito marcado neste mês ainda"}</div>
+    ${cycleHTML()}
     <div class="hstats">
       <div><i data-h="log"></i><b>${sLog.cur}</b><span>${sLog.cur === 1 ? "dia" : "dias"} seguidos registrando</span><small>recorde ${sLog.best}</small></div>
       <div><i data-h="water"></i><b>${sWater.cur}</b><span>${sWater.cur === 1 ? "dia" : "dias"} seguidos na meta de água</span><small>recorde ${sWater.best}</small></div>
       <div><i data-h="train"></i><b>${trainWeek}</b><span>${trainWeek === 1 ? "treino" : "treinos"} nesta semana</span><small>${trainMonth} no mês</small></div>
     </div>`;
 }
+function cycleHTML(){
+  const c = cycleInfo(), op = openPeriod();
+  let info = "", warn = "";
+  if (c){
+    info = c.bleeding ? `Menstruação · dia ${c.day} do ciclo` : `Dia ${c.day} do ciclo${c.phase ? ` · fase ${c.phase}` : ""}`;
+    if (c.canPredict) info += ` · próxima prevista ${fmtDay(c.next)} (média ${c.avg} dias)`;
+    else info += ` · previsão depois de 3 ciclos completos (${c.lens.length}/3)`;
+    if (!c.bleeding && c.day > 90) warn = `Faz ${c.day} dias desde a última menstruação. Na SOP isso pode acontecer, mas vale conversar com seu médico.`;
+    else if (!c.bleeding && c.day > 35) warn = `Este ciclo já passou de 35 dias (dia ${c.day}). É comum na SOP; se acontecer com frequência, comente com seu médico.`;
+    else if (c.lastLen > 35) warn = `O último ciclo durou ${c.lastLen} dias (mais de 35). É comum na SOP; se acontecer com frequência, comente com seu médico.`;
+  }
+  return `<div class="cycle">
+    <div class="cyrow"><i class="perdot"></i><span>${c ? esc(info) : "Registre a menstruação pra acompanhar o ciclo junto com o peso."}</span></div>
+    ${warn ? `<div class="cywarn">${esc(warn)}</div>` : ""}
+    <div class="row"><button class="btn sec" id="perBtn">${op ? "Menstruação acabou" : "Menstruação começou"}</button>${S.periods.length ? `<button class="btn sec" id="perList">Registros</button>` : ""}</div></div>`;
+}
+function periodSheet(kind){
+  const op = openPeriod();
+  openSheet(`<h2>${kind === "end" ? "Menstruação acabou" : "Menstruação começou"}</h2>
+    <div class="sub">${kind === "end" ? `Começou em ${fmtDay(op.start, {day: "numeric", month: "long"})}.` : "Ajuda a entender o peso: na fase pré-menstrual o corpo retém água e a balança sobe, sem ser gordura."}</div>
+    <label class="f">Data</label><input type="date" id="perDate" value="${today()}" max="${today()}"${kind === "end" ? ` min="${op.start}"` : ""}>
+    <div class="row"><button class="btn sec" data-close>Cancelar</button><button class="btn" id="perSave">Salvar</button></div>`);
+  $("#perSave").onclick = () => {
+    const d = $("#perDate").value;
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d) || d > today()) return toast("Escolha uma data até hoje");
+    if (kind === "end"){
+      if (d < op.start) return toast("O fim não pode ser antes do início");
+      op.end = d;
+    } else {
+      if (S.periods.some(p => p.start <= d && d <= periodEnd(p))) return toast("Essa data já está dentro de uma menstruação registrada");
+      const prev = periodsSorted().filter(p => p.start < d).at(-1);
+      if (prev && !prev.end) prev.end = addDays(d, -1) < periodEnd(prev) ? addDays(d, -1) : periodEnd(prev);
+      S.periods.push({start: d});
+    }
+    save(); closeSheet(); renderAll(); buzz(); toast(kind === "end" ? "Fim registrado" : "Início registrado");
+  };
+}
+function periodListSheet(){
+  const ps = periodsSorted().reverse();
+  openSheet(`<h2>Registros do ciclo</h2><div class="sub">${ps.length} ${ps.length === 1 ? "registro" : "registros"}. Toque no × pra apagar.</div>
+    <div class="plist">${ps.map((p, i) => { const nx = ps[i - 1]; return `<div class="prow"><div><b>${fmtDay(p.start, {day: "numeric", month: "short", year: "numeric"})}</b><small>${p.end ? `${daysBetween(p.start, p.end) + 1} dias de menstruação` : "sem fim registrado"}${nx ? ` · ciclo de ${daysBetween(p.start, nx.start)} dias` : ""}</small></div><button class="round sm ghost" data-pdel="${p.start}" aria-label="Apagar">${icon("x")}</button></div>`; }).join("")}</div>
+    <div class="row"><button class="btn sec" data-close>Fechar</button></div>`);
+  $("#sheet").onclick = e => {
+    const b = e.target.closest("[data-pdel]"); if (!b) return;
+    const old = S.periods.find(p => p.start === b.dataset.pdel);
+    S.periods = S.periods.filter(p => p !== old); save(); renderAll(); periodListSheet();
+    toast("Registro apagado", {label: "Desfazer", fn: () => { S.periods.push(old); save(); renderAll(); if (sheetOpen) periodListSheet(); }});
+  };
+}
 $("#pcal").onclick = e => {
+  if (e.target.closest("#perBtn")) return periodSheet(openPeriod() ? "end" : "start");
+  if (e.target.closest("#perList")) return periodListSheet();
   if (e.target.closest("#calPrev")){ calMonth = addDays(`${calMonth}-01`, -1).slice(0, 7); return renderCal(); }
   if (e.target.closest("#calNext")){ calMonth = addDays(`${calMonth}-01`, 32).slice(0, 7); return renderCal(); }
   const d = e.target.closest("[data-cday]"); if (!d || d.disabled) return;

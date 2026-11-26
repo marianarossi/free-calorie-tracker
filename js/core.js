@@ -80,6 +80,7 @@ function normalize(d){
     water: obj(d.water),
     combos: arr(d.combos).filter(c => c && Array.isArray(c.items)),
     train: obj(d.train),
+    periods: arr(d.periods).filter(p => p && /^\d{4}-\d{2}-\d{2}$/.test(p.start) && (!p.end || (/^\d{4}-\d{2}-\d{2}$/.test(p.end) && p.end >= p.start))),
     settings: {...DEFAULT_SETTINGS, ...obj(d.settings)},
   };
 }
@@ -116,6 +117,36 @@ function habitDates(k){
   if (k === "train") return new Set(Object.keys(S.train));
   if (k === "water") return new Set(Object.keys(S.water).filter(d => S.water[d] >= (S.settings.waterGoal || 2000)));
   return loggedDates();
+}
+
+/* ---------- ciclo menstrual ---------- */
+const PERIOD_CAP = 10; // menstruação sem fim registrado: conta no máximo 10 dias
+function periodsSorted(){ return [...S.periods].sort((a, b) => a.start.localeCompare(b.start)); }
+function periodEnd(p){ if (p.end) return p.end; const cap = addDays(p.start, PERIOD_CAP - 1), t = today(); return t < cap ? t : cap; }
+function onPeriod(d){ return S.periods.some(p => p.start <= d && d <= periodEnd(p)); }
+function openPeriod(){ const l = periodsSorted().at(-1); return l && !l.end && daysBetween(l.start, today()) < PERIOD_CAP ? l : null; }
+/** dia do ciclo, média, previsão (só com 3+ ciclos completos) e fase aproximada */
+function cycleInfo(d = today()){
+  const all = periodsSorted(), before = all.filter(p => p.start <= d);
+  if (!before.length) return null;
+  const last = before.at(-1), day = daysBetween(last.start, d) + 1;
+  const lens = []; for (let i = 1; i < all.length; i++) lens.push(daysBetween(all[i - 1].start, all[i].start));
+  const recent = lens.slice(-6), avg = recent.length ? Math.round(recent.reduce((s, x) => s + x, 0) / recent.length) : null;
+  const ended = all.filter(p => p.end), bleedLen = ended.length ? Math.round(ended.reduce((s, p) => s + daysBetween(p.start, p.end) + 1, 0) / ended.length) : 5;
+  const canPredict = lens.length >= 3, lastStart = all.at(-1).start;
+  const next = canPredict ? addDays(lastStart, avg) : null;
+  const bleeding = onPeriod(d);
+  let phase = bleeding ? "menstruação" : null, preMenstrual = false;
+  if (!bleeding && canPredict && last.start === lastStart){
+    const toNext = daysBetween(d, next);
+    preMenstrual = toNext >= 0 && toNext <= 10;
+    phase = day > avg - 14 ? "lútea" : "folicular";
+  }
+  return {start: last.start, day, lens, avg, bleedLen, canPredict, next, bleeding, phase, preMenstrual, lastLen: lens.at(-1) ?? null};
+}
+function predictedPeriod(d){
+  const c = cycleInfo(); if (!c?.canPredict || d <= today() || onPeriod(d)) return false;
+  return d >= c.next && d <= addDays(c.next, c.bleedLen - 1);
 }
 
 /* ---------- cru × cozido: rendimento = peso cozido ÷ peso cru ---------- */

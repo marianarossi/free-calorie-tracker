@@ -19,7 +19,7 @@ function syncSoon(ms = 1500){ if (!syncReady()) return; clearTimeout(syncTimer);
 /* ---------- documento remoto ---------- */
 function toDoc(s){
   const settings = {...s.settings}; for (const k of LOCAL_ONLY) delete settings[k];
-  return {products: s.products, entries: s.entries, weights: s.weights, goals: s.goals, profile: s.profile, water: s.water, train: s.train || {}, combos: s.combos, settings};
+  return {products: s.products, entries: s.entries, weights: s.weights, goals: s.goals, profile: s.profile, water: s.water, train: s.train || {}, periods: s.periods || [], combos: s.combos, settings};
 }
 /** JSON legível e fácil de editar à mão: um item por linha */
 function serializeDoc(doc){
@@ -30,7 +30,7 @@ function serializeDoc(doc){
   };
   const head = {app: "meu-dia", version: 2, updatedAt: new Date().toISOString()};
   const parts = Object.entries(head).map(([k, v]) => ` ${J(k)}: ${J(v)}`);
-  for (const k of ["goals", "profile", "settings", "water", "train", "weights", "combos", "products", "entries"]) parts.push(` ${J(k)}: ${block(doc[k], Array.isArray(doc[k]))}`);
+  for (const k of ["goals", "profile", "settings", "water", "train", "periods", "weights", "combos", "products", "entries"]) parts.push(` ${J(k)}: ${block(doc[k], Array.isArray(doc[k]))}`);
   return `{\n${parts.join(",\n")}\n}\n`;
 }
 
@@ -55,12 +55,13 @@ const byKey = (list, f) => Object.fromEntries((list || []).map(x => [f(x), x]));
 const entryKey = e => e.id || "~" + JSON.stringify(e);
 function mergeDocs(b, l, r, prefer){
   b = b || {};
-  const lists = {entries: entryKey, weights: w => w.date, combos: c => c.id || "~" + JSON.stringify(c)};
+  const lists = {entries: entryKey, weights: w => w.date, periods: p => p.start, combos: c => c.id || "~" + JSON.stringify(c)};
   const out = {};
   for (const [k, f] of Object.entries(lists)) out[k] = Object.values(merge3(byKey(b[k], f), byKey(l[k], f), byKey(r[k], f), prefer));
   for (const k of ["products", "water", "train", "goals", "profile", "settings"]) out[k] = merge3(b[k], l[k], r[k], prefer);
   out.entries.sort((x, y) => x.date.localeCompare(y.date) || (x.createdAt || 0) - (y.createdAt || 0));
   out.weights.sort((x, y) => x.date.localeCompare(y.date));
+  out.periods.sort((x, y) => x.start.localeCompare(y.start));
   return out;
 }
 function applyDoc(doc){

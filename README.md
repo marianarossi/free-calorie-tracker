@@ -20,6 +20,7 @@ App web (PWA) pra registrar o que você come e o seu peso, feito pra produtos ve
 - **Calculadora de metas** (Mifflin-St Jeor + atividade + objetivo → calorias e macros)
 - **Aba Progresso**: calorias por dia × meta, média, dias dentro da meta, sequência de dias registrados, distribuição de macros, alimentos que mais pesam e **gasto calórico real estimado** (cruza o que você comeu com a tendência do peso)
 - **Hábitos**: cartão do dia com treino (musculação, cardio…), meta de água e registro, e um **calendário do mês** que vai se preenchendo; **sequência 🔥** de dias seguidos registrando, com comemoração nos marcos
+- **Ciclo menstrual**: registre início e fim no calendário; o diário mostra o dia do ciclo, o gráfico de peso marca os dias de menstruação (retenção de água), a previsão aparece depois de 3 ciclos completos e há um aviso discreto para ciclos longos (> 35 dias) ou ausentes (> 90 dias)
 - **Tracker de peso** com gráfico, média de 7 dias, IMC, progresso até o peso meta e **previsão de quando você chega lá**
 
 **Resto**

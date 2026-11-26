@@ -4,7 +4,7 @@
    ========================================================= */
 @font-face{font-family:"Bricolage";src:url("vendor/fonts/bricolage-latin.woff2") format("woff2");font-weight:200 800;font-stretch:75% 100%;font-display:swap}
 
-:root{
+:root{ --per:#E0567C;
   --bg:#F3EEE4; --card:#FFFDF8; --soft:#EAE3D4; --ink:#14201A; --muted:#6A7166; --line:#E2D9C8;
   --forest:#17402D; --forest-2:#205A3F; --on-forest:#F4F1E8; --on-forest-2:#A8C3B3;
   --lime:#C8F169; --accent:#1E6A44; --accent-soft:#DDEDD3; --on-accent:#fff;
@@ -531,3 +531,22 @@ html[data-sync=error] #settingsTab::after{content:"";position:absolute;top:8px;r
 .muted{color:var(--muted);font-weight:500}
 .planlink{display:flex;align-items:center;justify-content:center;gap:6px;width:100%;margin-top:10px}
 @media (prefers-reduced-motion:reduce){.entry.fresh{animation:none;background:color-mix(in srgb,var(--lime) 18%,transparent)}}
+
+/* ===== ciclo ===== */
+.cd.per{box-shadow:inset 0 -4px 0 var(--per);background:color-mix(in srgb,var(--per) 14%,var(--soft))}
+.cd.per.all{background:var(--forest)}
+.cd.per.today{box-shadow:inset 0 0 0 2px var(--ink),inset 0 -5px 0 var(--per)}
+.cd.per-pred{box-shadow:inset 0 0 0 1.5px color-mix(in srgb,var(--per) 60%,transparent);background:none;opacity:.8}
+.cd.per-pred:disabled{opacity:.6}
+.legend3 .perk i{background:var(--per);border-radius:2px;height:4px;width:12px}
+.cycle{margin-top:12px;background:color-mix(in srgb,var(--per) 8%,var(--soft));border-radius:14px;padding:10px 12px}
+.cyrow{display:flex;gap:8px;align-items:flex-start;font-size:13px;line-height:1.35}
+.perdot{width:9px;height:9px;border-radius:50%;background:var(--per);flex:none;margin-top:4px}
+.cywarn{font-size:12.5px;line-height:1.35;margin-top:8px;padding:8px 10px;border-radius:10px;background:var(--card);border-left:3px solid var(--per)}
+.cycle .row{margin-top:10px}
+.cycle .btn{padding:10px 12px;font-size:14px}
+.plist{display:flex;flex-direction:column}
+.prow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--line)}
+.prow div{flex:1;display:flex;flex-direction:column}
+.prow small{color:var(--muted);font-size:12.5px}
+.perleg{display:inline-block;width:12px;height:9px;border-radius:2px;background:var(--per);opacity:.35;vertical-align:-1px}

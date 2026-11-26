@@ -166,6 +166,8 @@ $("#importInput").onchange = async e => {
     S.products = {...n.products, ...S.products};
     const wd = new Set(S.weights.map(w => w.date)); S.weights.push(...n.weights.filter(w => !wd.has(w.date)));
     S.water = {...n.water, ...S.water};
+    S.train = {...n.train, ...S.train};
+    const ps = new Set(S.periods.map(p => p.start)); S.periods.push(...n.periods.filter(p => !ps.has(p.start)));
     const cids = new Set(S.combos.map(c => c.id)); S.combos.push(...n.combos.filter(c => !cids.has(c.id)));
     save(); closeSheet(); renderAll(); toast("Backup juntado");
   };
