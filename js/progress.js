@@ -5,17 +5,46 @@
 let pRange = 30;
 const TDEE_WINDOW = 28;
 
-function streaks(dates){
-  const t = today();
-  let cur = 0, d = dates.has(t) ? t : addDays(t, -1);
-  while (dates.has(d)){ cur++; d = addDays(d, -1); }
-  let best = 0, run = 0, prev = null;
-  for (const s of [...dates].sort()){ run = prev && daysBetween(prev, s) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = s; }
-  return {cur, best};
+/* ---------- calendário de hábitos ---------- */
+let calMonth = today().slice(0, 7); // "AAAA-MM"
+const HABITS = [["train", "Treino", "--lime"], ["water", "Água", "--water"], ["log", "Registro", "--kcal"]];
+function renderCal(){
+  const t = today(), [y, m] = calMonth.split("-").map(Number), first = `${calMonth}-01`;
+  const days = new Date(y, m, 0).getDate(), lead = (parseYmd(first).getDay() + 6) % 7, logged = loggedDates();
+  const title = parseYmd(first).toLocaleDateString("pt-BR", {month: "long", year: "numeric"}).replace(/^./, c => c.toUpperCase());
+  let cells = "", full = 0, any = 0;
+  for (let i = 0; i < lead; i++) cells += `<span class="cd pad"></span>`;
+  for (let d = 1; d <= days; d++){
+    const ds = `${calMonth}-${pad(d)}`, fut = ds > t, h = habitDay(ds, logged), n = HABITS.filter(x => h[x[0]]).length;
+    if (!fut && n === 3) full++; if (!fut && n) any++;
+    cells += `<button class="cd${n === 3 ? " all" : ""}${ds === t ? " today" : ""}" data-cday="${ds}"${fut ? " disabled" : ""} aria-label="${fmtDay(ds, {day: "numeric", month: "long"})}: ${HABITS.filter(x => h[x[0]]).map(x => x[1]).join(", ") || "nada"}">
+      <b>${d}</b><span class="dots">${HABITS.map(([k]) => `<i class="${h[k] ? "on" : ""}" data-h="${k}"></i>`).join("")}</span></button>`;
+  }
+  const stat = k => { const s = streaks(habitDates(k)); return s; };
+  const wkStart = addDays(t, -((parseYmd(t).getDay() + 6) % 7));
+  const trainWeek = Object.keys(S.train).filter(d => d >= wkStart && d <= t).length, trainMonth = Object.keys(S.train).filter(d => d.startsWith(t.slice(0, 7))).length;
+  const sLog = stat("log"), sWater = stat("water");
+  $("#pcal").innerHTML = `<div class="ch calh"><span>Calendário de hábitos</span><div class="calnav"><button class="round sm ghost" id="calPrev" aria-label="Mês anterior">${icon("left")}</button><b>${esc(title)}</b><button class="round sm ghost" id="calNext" aria-label="Próximo mês"${calMonth >= t.slice(0, 7) ? " disabled" : ""}>${icon("right")}</button></div></div>
+    <div class="legend3">${HABITS.map(([k, l]) => `<span><i data-h="${k}"></i>${l}</span>`).join("")}<span class="allk"><i></i>os 3</span></div>
+    <div class="calgrid">${["S", "T", "Q", "Q", "S", "S", "D"].map(w => `<span class="wd">${w}</span>`).join("")}${cells}</div>
+    <div class="calsum">${any ? `${full} ${full === 1 ? "dia" : "dias"} com os 3 hábitos neste mês` : "Nenhum hábito marcado neste mês ainda"}</div>
+    <div class="hstats">
+      <div><i data-h="log"></i><b>${sLog.cur}</b><span>${sLog.cur === 1 ? "dia" : "dias"} seguidos registrando</span><small>recorde ${sLog.best}</small></div>
+      <div><i data-h="water"></i><b>${sWater.cur}</b><span>${sWater.cur === 1 ? "dia" : "dias"} seguidos na meta de água</span><small>recorde ${sWater.best}</small></div>
+      <div><i data-h="train"></i><b>${trainWeek}</b><span>${trainWeek === 1 ? "treino" : "treinos"} nesta semana</span><small>${trainMonth} no mês</small></div>
+    </div>`;
 }
+$("#pcal").onclick = e => {
+  if (e.target.closest("#calPrev")){ calMonth = addDays(`${calMonth}-01`, -1).slice(0, 7); return renderCal(); }
+  if (e.target.closest("#calNext")){ calMonth = addDays(`${calMonth}-01`, 32).slice(0, 7); return renderCal(); }
+  const d = e.target.closest("[data-cday]"); if (!d || d.disabled) return;
+  setTab("diary"); setDate(d.dataset.cday);
+};
+
 function renderProgress(){
+  renderCal();
   const t = today(), G = S.goals, g = G.kcal || 2000;
-  const byDate = groupByDate(S.entries);
+  const byDate = groupByDate(eatenEntries());
   const rows = Array.from({length: pRange}, (_, i) => { const d = addDays(t, i - pRange + 1), l = byDate.get(d) || []; return {d, n: l.length, ...totals(l)}; });
   const logged = rows.filter(r => r.n);
   const avg = k => logged.length ? logged.reduce((s, r) => s + r[k], 0) / logged.length : null;

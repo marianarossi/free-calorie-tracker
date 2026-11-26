@@ -19,7 +19,7 @@ function syncSoon(ms = 1500){ if (!syncReady()) return; clearTimeout(syncTimer);
 /* ---------- documento remoto ---------- */
 function toDoc(s){
   const settings = {...s.settings}; for (const k of LOCAL_ONLY) delete settings[k];
-  return {products: s.products, entries: s.entries, weights: s.weights, goals: s.goals, profile: s.profile, water: s.water, combos: s.combos, settings};
+  return {products: s.products, entries: s.entries, weights: s.weights, goals: s.goals, profile: s.profile, water: s.water, train: s.train || {}, combos: s.combos, settings};
 }
 /** JSON legível e fácil de editar à mão: um item por linha */
 function serializeDoc(doc){
@@ -30,7 +30,7 @@ function serializeDoc(doc){
   };
   const head = {app: "meu-dia", version: 2, updatedAt: new Date().toISOString()};
   const parts = Object.entries(head).map(([k, v]) => ` ${J(k)}: ${J(v)}`);
-  for (const k of ["goals", "profile", "settings", "water", "weights", "combos", "products", "entries"]) parts.push(` ${J(k)}: ${block(doc[k], Array.isArray(doc[k]))}`);
+  for (const k of ["goals", "profile", "settings", "water", "train", "weights", "combos", "products", "entries"]) parts.push(` ${J(k)}: ${block(doc[k], Array.isArray(doc[k]))}`);
   return `{\n${parts.join(",\n")}\n}\n`;
 }
 
@@ -58,7 +58,7 @@ function mergeDocs(b, l, r, prefer){
   const lists = {entries: entryKey, weights: w => w.date, combos: c => c.id || "~" + JSON.stringify(c)};
   const out = {};
   for (const [k, f] of Object.entries(lists)) out[k] = Object.values(merge3(byKey(b[k], f), byKey(l[k], f), byKey(r[k], f), prefer));
-  for (const k of ["products", "water", "goals", "profile", "settings"]) out[k] = merge3(b[k], l[k], r[k], prefer);
+  for (const k of ["products", "water", "train", "goals", "profile", "settings"]) out[k] = merge3(b[k], l[k], r[k], prefer);
   out.entries.sort((x, y) => x.date.localeCompare(y.date) || (x.createdAt || 0) - (y.createdAt || 0));
   out.weights.sort((x, y) => x.date.localeCompare(y.date));
   return out;
@@ -144,8 +144,15 @@ async function syncNow({manual = false} = {}){
         sha = res.sha;
       }
       const now = toDoc(S); // mudanças feitas aqui enquanto sincronizava não se perdem
+      const known = new Set([...L0.entries, ...(base?.entries || [])].map(entryKey));
+      const arrived = R ? M.entries.filter(e => !known.has(entryKey(e))) : [];
       const changed = applyDoc(jstr(now) === jstr(L0) ? M : mergeDocs(L0, now, M, "local"));
       saveBase(M);
+      if (arrived.length && base){ // na 1ª sincronização de um aparelho tudo é "novo": não avisa
+        for (const e of arrived) freshIds.add(e.id);
+        const byClaude = arrived.every(e => e.by === "claude"), n = arrived.length;
+        if (!manual) toast(`${n} ${n === 1 ? "item chegou" : "itens chegaram"}${byClaude ? " do Claude" : " de outro aparelho"}`, arrived[0].date !== curDate ? {label: "Ver", fn: () => { setTab("diary"); setDate(arrived[0].date); }} : null);
+      }
       setSyncCfg({...syncCfg(), sha, lastSync: Date.now(), lastError: null});
       ok = true;
       if (changed && typeof renderAll === "function") renderAll();

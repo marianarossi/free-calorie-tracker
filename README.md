@@ -11,11 +11,15 @@ App web (PWA) pra registrar o que você come e o seu peso, feito pra produtos ve
 - **Receitas**: junte ingredientes, informe o peso final e as porções, e a receita vira um alimento
 - **Copiar refeição ou dia anterior**, duplicar, mover pra hoje, e **desfazer** qualquer remoção
 - **Água**: copos que enchem, com meta diária
+- **Planejar antes de comer**: "e se eu comer isso?" fica tracejado no diário, mostrando como o dia ficaria; um toque em **Comi** confirma (ajustando o peso)
+- **Cru × cozido**: rótulo de alimento cru e você pesou cozido? O app converte pelo rendimento (arroz ×2,8, massa ×2,3, carne ×0,75…), sugerido pelo nome e ajustável por produto
+- Itens com valores **estimados** aparecem com ≈, e os lançados pelo Claude com "via Claude"
 
 **Acompanhar**
 - Totais do dia com anel por origem das calorias (proteína/carbo/gordura) e metas ajustáveis
 - **Calculadora de metas** (Mifflin-St Jeor + atividade + objetivo → calorias e macros)
 - **Aba Progresso**: calorias por dia × meta, média, dias dentro da meta, sequência de dias registrados, distribuição de macros, alimentos que mais pesam e **gasto calórico real estimado** (cruza o que você comeu com a tendência do peso)
+- **Hábitos**: cartão do dia com treino (musculação, cardio…), meta de água e registro, e um **calendário do mês** que vai se preenchendo; **sequência 🔥** de dias seguidos registrando, com comemoração nos marcos
 - **Tracker de peso** com gráfico, média de 7 dias, IMC, progresso até o peso meta e **previsão de quando você chega lá**
 
 **Resto**

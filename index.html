@@ -59,6 +59,11 @@
     <symbol id="i-target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r=".8"/></symbol>
     <symbol id="i-box" viewBox="0 0 24 24"><path d="M21 7.5 12 3 3 7.5v9L12 21l9-4.5z"/><path d="m3 7.5 9 4.5 9-4.5M12 12v9"/></symbol>
     <symbol id="i-calc" viewBox="0 0 24 24"><rect x="4.5" y="2.5" width="15" height="19" rx="3"/><path d="M8 7h8M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01M8.5 15h.01M12 15h.01M15.5 15h.01M8.5 18.5h7" stroke-width="2.2"/></symbol>
+    <symbol id="i-dumbbell" viewBox="0 0 24 24"><path d="M6.5 6.5v11M17.5 6.5v11M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/></symbol>
+    <symbol id="i-run" viewBox="0 0 24 24"><circle cx="14.5" cy="4.5" r="1.8"/><path d="m6 20 3.5-5 3 2.5V21M8 10.5l3-3 3.5 2.5 2.5 3H20M11 7.5l-1.5 6"/></symbol>
+    <symbol id="i-ball" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 3a14 14 0 0 1 0 18M3.6 9.5h16.8M3.6 14.5h16.8"/></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.5" y="5" width="17" height="15.5" rx="3"/><path d="M8 3v4M16 3v4M3.5 10h17"/></symbol>
+    <symbol id="i-note" viewBox="0 0 24 24"><path d="M6 3.5h9l3.5 3.5v13.5H6z"/><path d="M9 11h6M9 15h6M14.5 3.5V7h4"/></symbol>
   </defs>
 </svg>
 
@@ -71,6 +76,7 @@
       <input type="date" id="datePick" class="vh" tabindex="-1" aria-hidden="true">
       <div class="top-actions">
         <button class="pill hidden" id="todayBtn">Hoje</button>
+        <button class="streak" id="streakBtn" aria-label="Sequência de dias registrando"></button>
         <button class="round" id="quickBtn" aria-label="Adição rápida (só calorias)"><svg class="ic"><use href="#i-bolt"/></svg></button>
       </div>
     </header>
@@ -84,6 +90,7 @@
         <div class="ring">
           <svg viewBox="0 0 140 140" aria-hidden="true">
             <circle class="trk" cx="70" cy="70" r="60"/>
+            <circle class="seg plan" id="segPl" cx="70" cy="70" r="60"/>
             <circle class="seg" id="segK" cx="70" cy="70" r="60" style="stroke:var(--lime)"/>
             <circle class="seg" id="segP" cx="70" cy="70" r="60" style="stroke:var(--prot)"/>
             <circle class="seg" id="segC" cx="70" cy="70" r="60" style="stroke:var(--carb)"/>
@@ -97,12 +104,14 @@
           <div><span>Do dia</span><b id="hPct">—</b></div>
         </div>
       </div>
+      <div class="hplan hidden" id="hPlan"></div>
       <div class="macros" id="macros"></div>
       <button class="more" id="moreNuts"></button>
       <div class="bars hidden" id="bars"></div>
     </div>
 
     <div class="card water" id="water"></div>
+    <div class="card habits" id="habits"></div>
 
     <div id="shortcutsWrap" class="hidden">
       <div class="sec-title">Atalhos</div>
@@ -117,6 +126,7 @@
   <!-- ===== PROGRESSO ===== -->
   <section id="view-progress" class="hidden">
     <header class="top"><div class="titlebtn"><small>como você está indo</small><h1>Progresso</h1></div></header>
+    <div class="card hcal" id="pcal"></div>
     <div class="seg big" id="pRange"><button data-r="7">7 dias</button><button data-r="30" class="on">30 dias</button><button data-r="90">90 dias</button></div>
     <div class="tiles" id="ptiles"></div>
     <div class="card"><div class="ch">Calorias por dia</div><div id="pchart" class="chart"></div></div>

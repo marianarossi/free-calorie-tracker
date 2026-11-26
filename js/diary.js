@@ -16,17 +16,72 @@ const relDay = s => { const l = dateLabel(s); return l === "Hoje" || l === "Onte
 function setDate(d){ curDate = d > today() ? today() : d; renderDiary(); }
 
 function renderDiary(){
-  const byDate = groupByDate(S.entries);
-  const list = (byDate.get(curDate) || []).sort((a, b) => (a.createdAt || 0) - (b.createdAt || 0));
+  const byDate = groupByDate(eatenEntries());
+  const all = dayEntries(curDate), eaten = all.filter(e => !e.planned), planned = all.filter(e => e.planned);
   $("#dateLabel").textContent = dateLabel(curDate);
   $("#dateSub").textContent = fmtDay(curDate, {weekday: "long", day: "numeric", month: "long"});
   $("#todayBtn").classList.toggle("hidden", curDate === today());
+  renderStreak();
   renderWeek(byDate);
-  renderHero(totals(list));
+  renderHero(totals(eaten), planned.length ? totals(planned) : null);
   renderWater();
+  renderHabits();
   renderShortcuts();
-  renderMeals(list, byDate);
+  renderMeals(all, byDate);
   renderNag();
+}
+
+/* ---------- sequência (fogo) ---------- */
+function renderStreak(){
+  const logged = loggedDates(), {cur} = streaks(logged), todayOk = logged.has(today());
+  const b = $("#streakBtn");
+  b.innerHTML = `${icon("flame")}<b>${cur}</b>`;
+  b.classList.toggle("cold", !cur);
+  b.classList.toggle("pending", !!cur && !todayOk);
+  const lbl = cur ? `${cur} ${cur === 1 ? "dia seguido" : "dias seguidos"} registrando${todayOk ? "" : ". Registre hoje pra não perder"}` : "Comece uma sequência registrando hoje";
+  b.setAttribute("aria-label", lbl); b.title = lbl;
+}
+$("#streakBtn").onclick = () => { setTab("progress"); $("#pcal").scrollIntoView({block: "start"}); };
+const MILESTONES = [3, 7, 14, 30, 50, 100, 200, 365];
+/** depois de uma ação: comemora marcos da sequência e o dia com os 3 hábitos */
+function habitCheck(date, beforeHabits, beforeStreak){
+  if (date !== today()) return;
+  const h = habitDay(date), st = streaks(loggedDates()).cur;
+  if (beforeStreak != null && st > beforeStreak && MILESTONES.includes(st)){ setTimeout(() => { celebrate(); toast(`🔥 ${st} dias seguidos registrando!`); }, 700); return; }
+  if (beforeHabits && h.train && h.water && h.log && !(beforeHabits.train && beforeHabits.water && beforeHabits.log)){ setTimeout(() => { celebrate(); toast("Os 3 hábitos de hoje feitos ✓"); }, 700); }
+}
+
+/* ---------- hábitos do dia ---------- */
+function renderHabits(){
+  const h = habitDay(curDate), tr = S.train[curDate], tt = TRAIN_TYPES.find(t => t[0] === tr?.type);
+  const items = [
+    ["train", tr ? (tt?.[1] || "Treinei") : "Treino", tr ? "feito" : "toque pra marcar", tt?.[2] || "dumbbell"],
+    ["water", "Água", h.water ? "meta batida" : `${fmt((S.water[curDate] || 0) / 1000, 1)} de ${fmt((S.settings.waterGoal || 2000) / 1000, 1)} L`, "drop"],
+    ["log", "Registro", h.log ? "feito" : "nada ainda", "note"],
+  ];
+  const n = items.filter(i => h[i[0]]).length;
+  $("#habits").innerHTML = `<div class="hh"><b>Hábitos ${curDate === today() ? "de hoje" : "do dia"}</b><span>${n}/3${n === 3 ? " ✓" : ""}</span></div>
+    <div class="hrow">${items.map(([k, l, s, ic]) => `<button class="hb hb-${k}${h[k] ? " on" : ""}" ${k === "train" ? 'id="trainBtn"' : `data-hint="${k}"`} aria-pressed="${h[k]}"><i>${icon(h[k] ? "check" : ic)}</i><span><b>${esc(l)}</b><small>${esc(s)}</small></span></button>`).join("")}</div>`;
+  $("#habits").classList.toggle("done", n === 3);
+}
+$("#habits").onclick = e => {
+  if (e.target.closest("#trainBtn")) return trainSheet(curDate);
+  const k = e.target.closest("[data-hint]")?.dataset.hint;
+  if (k === "water") toast("A água marca sozinha quando você bate a meta");
+  if (k === "log") toast("Marca sozinho quando você registra alguma refeição");
+};
+function trainSheet(date){
+  const cur = S.train[date];
+  const set = v => {
+    const bh = habitDay(date);
+    if (v) S.train[date] = v; else delete S.train[date];
+    save(); closeSheet(); renderAll(); buzz();
+    if (v) habitCheck(date, bh); else toast("Treino desmarcado");
+  };
+  actionSheet(date === today() ? "Treinou hoje?" : `Treino · ${dateLabel(date)}`, [
+    ...TRAIN_TYPES.map(([k, l, ic]) => ({icon: ic, label: l, sub: cur?.type === k ? "marcado" : "", fn: () => set({type: k})})),
+    ...(cur ? [{icon: "x", label: "Não treinei", danger: true, fn: () => set(null)}] : []),
+  ]);
 }
 
 /* ---------- faixa da semana ---------- */
@@ -48,7 +103,7 @@ $("#week").onclick = e => {
 };
 
 /* ---------- hero (anel + macros) ---------- */
-function renderHero(t){
+function renderHero(t, plan){
   const G = S.goals, g = G.kcal || 2000, over = t.kcal > g;
   countUp($("#kcalBig"), Math.round(Math.abs(g - t.kcal)));
   $("#kcalLbl").textContent = over ? "kcal acima da meta" : "kcal restantes";
@@ -60,6 +115,14 @@ function renderHero(t){
   const parts = [["segP", t.prot * 4], ["segC", t.carb * 4], ["segG", t.gord * 9]], sum = parts.reduce((s, p) => s + p[1], 0);
   const arc = clamp(t.kcal / g, 0, 1) * RING_C;
   const set = (id, len, off) => { const c = $("#" + id); c.style.strokeDasharray = `${Math.max(0, len)} ${RING_C}`; c.style.strokeDashoffset = -off; };
+  // planejado: arco translúcido logo depois do que já foi comido
+  const planArc = plan && !over ? clamp((t.kcal + plan.kcal) / g, 0, 1) * RING_C - arc : 0;
+  set("segPl", planArc, arc);
+  $("#hPlan").classList.toggle("hidden", !plan);
+  if (plan){
+    const left = g - t.kcal - plan.kcal;
+    $("#hPlan").innerHTML = `<i></i><span>Planejado ${fmt(plan.kcal, 0)} kcal · com ele ${left >= 0 ? `sobram <b>${fmt(left, 0)}</b>` : `passa <b>${fmt(-left, 0)}</b>`} · prot ${fmt(t.prot + plan.prot, 0)}/${fmt(G.prot, 0)} g</span>`;
+  }
   if (over || !sum){ set("segK", over ? RING_C : arc, 0); for (const [id] of parts) set(id, 0, 0); }
   else {
     set("segK", 0, 0);
@@ -103,9 +166,12 @@ function renderWater(){
 function setWater(ml){
   const goal = S.settings.waterGoal || 2000, before = S.water[curDate] || 0;
   ml = Math.max(0, Math.round(ml));
+  const bh = habitDay(curDate);
   if (ml) S.water[curDate] = ml; else delete S.water[curDate];
-  save(); renderWater(); buzz(8);
-  if (before < goal && ml >= goal){ celebrate(); toast("Meta de água batida! 💧"); }
+  save(); renderWater(); renderHabits(); renderStreak(); buzz(8);
+  const h = habitDay(curDate);
+  if (h.train && h.log && h.water && !bh.water && curDate === today()) habitCheck(curDate, bh);
+  else if (before < goal && ml >= goal){ celebrate(); toast("Meta de água batida! 💧"); }
 }
 $("#water").onclick = e => {
   const step = S.settings.waterStep || 250, ml = S.water[curDate] || 0;
@@ -148,20 +214,37 @@ function renderMeals(list, byDate){
   $("#meals").innerHTML = MEALS.map((m, i) => {
     const items = byMeal[i];
     if (!items.length && i === 4) return "";
-    const t = totals(items);
+    const t = totals(items.filter(e => !e.planned)), np = items.filter(e => e.planned).length;
     return `<div class="meal card${items.length ? "" : " is-empty"}" style="--mc:var(${MEAL_COLORS[i]})">
-      <div class="mh"><div class="mi">${icon(MEAL_ICONS[i])}</div><div class="mt"><b>${m}</b><small>${items.length ? `${fmt(t.kcal, 0)} kcal · P ${fmt(t.prot, 0)} · C ${fmt(t.carb, 0)} · G ${fmt(t.gord, 0)}` : "nada ainda"}</small></div>
+      <div class="mh"><div class="mi">${icon(MEAL_ICONS[i])}</div><div class="mt"><b>${m}</b><small>${items.length > np ? `${fmt(t.kcal, 0)} kcal · P ${fmt(t.prot, 0)} · C ${fmt(t.carb, 0)} · G ${fmt(t.gord, 0)}` : np ? "só planejado" : "nada ainda"}${np && items.length > np ? ` · ${np}&nbsp;planejado${np > 1 ? "s" : ""}` : ""}</small></div>
       <button class="round sm ghost" data-more="${i}" aria-label="Opções de ${m}">${icon("more")}</button><button class="round sm addm" data-meal="${i}" aria-label="Adicionar em ${m}">${icon("plus")}</button></div>
       ${items.length ? `<div class="entries">${items.map(entryRow).join("")}</div>` : ""}</div>`;
   }).join("");
 }
+const freshIds = new Set(); // entradas que acabaram de chegar pela sincronização (piscam uma vez)
 function entryRow(e){
   const p = e.productId ? getProduct(e.productId) : null;
-  return `<div class="entry" data-eid="${esc(e.id)}">${e.quick ? `<div class="thumb">${icon("bolt")}</div>` : thumb(p)}<div class="nm"><div>${esc(e.name)}</div><div>${e.quick ? "adição rápida" : `${fmt(e.grams, 0)} ${esc(e.unit || "g")}`} · P ${fmt(e.n?.prot)} · C ${fmt(e.n?.carb)} · G ${fmt(e.n?.gord)}</div></div><div class="k">${fmt(e.n?.kcal, 0)}<small> kcal</small></div></div>`;
+  const amount = e.quick || e.grams == null ? "adição rápida" : `${fmt(e.grams, 0)} ${esc(e.unit || "g")}${e.cooked ? " cozido" : ""}`;
+  const tags = (e.planned ? `<span class="tag plan">planejado</span>` : "") + (e.by === "claude" ? `<span class="tag ai">via Claude</span>` : "");
+  const fresh = freshIds.has(e.id); if (fresh) freshIds.delete(e.id);
+  return `<div class="entry${e.planned ? " planned" : ""}${fresh ? " fresh" : ""}" data-eid="${esc(e.id)}">${e.quick ? `<div class="thumb">${icon("bolt")}</div>` : thumb(p)}<div class="nm"><div>${esc(e.name)}</div><div>${tags}${amount} · P ${fmt(e.n?.prot)} · C ${fmt(e.n?.carb)} · G ${fmt(e.n?.gord)}</div></div>`
+    + (e.planned ? `<button class="ate" data-ate="${esc(e.id)}">${icon("check")}Comi</button>` : "")
+    + `<div class="k">${e.est ? `<i class="est" title="valor estimado">≈</i>` : ""}${fmt(e.n?.kcal, 0)}<small> kcal</small></div></div>`;
+}
+/** confirma um planejado: produto → abre a porção pra ajustar o peso; rápido → confirma direto */
+function confirmPlanned(eid){
+  const e = S.entries.find(x => x.id === eid); if (!e) return;
+  const p = e.productId ? getProduct(e.productId) : null;
+  if (p && e.grams) return editEntrySheet(eid, {confirm: true});
+  const bh = habitDay(e.date), bs = streaks(loggedDates()).cur;
+  delete e.planned; e.createdAt = Date.now();
+  save(); buzz(); renderAll(); toast("Confirmado · " + MEALS[e.meal ?? 4], {label: "Desfazer", fn: () => { e.planned = true; save(); renderAll(); }});
+  habitCheck(e.date, bh, bs);
 }
 $("#meals").onclick = e => {
   const add = e.target.closest("[data-meal]"); if (add){ pendingMeal = +add.dataset.meal; return searchSheet(); }
   const more = e.target.closest("[data-more]"); if (more) return mealMenu(+more.dataset.more);
+  const ate = e.target.closest("[data-ate]"); if (ate) return confirmPlanned(ate.dataset.ate);
   const row = e.target.closest("[data-eid]"); if (row) editEntrySheet(row.dataset.eid);
 };
 function copyEntries(list, date, meal){
@@ -185,7 +268,7 @@ function quickSheet({entry, meal} = {}){
   const e = entry;
   let m = e?.meal ?? meal ?? pendingMeal ?? (curDate === today() ? mealByHour() : 1);
   const v = k => e?.n?.[k] != null ? Math.round(e.n[k] * 10) / 10 : "";
-  openSheet(`<h2>${e ? "Editar registro" : "Adição rápida"}</h2><div class="sub">${e ? "Registro sem produto vinculado." : "Pra quando você só sabe as calorias: restaurante, algo que comeu fora…"}</div>
+  openSheet(`<h2>${e ? "Editar registro" : "Adição rápida"}</h2><div class="sub">${e ? `Registro sem produto vinculado${e.grams ? ` · ${fmt(e.grams, 0)} ${esc(e.unit || "g")}${e.cooked ? " cozido" : ""}` : ""}${e.est ? " · valores estimados" : ""}${e.by === "claude" ? " · lançado pelo Claude" : ""}.` : "Pra quando você só sabe as calorias: restaurante, algo que comeu fora…"}</div>
     <label class="f">O que foi? (opcional)</label><input type="text" id="qName" value="${esc(e?.name || "")}" placeholder="ex: Almoço no restaurante">
     <label class="f">Calorias</label><div class="grams"><input type="number" inputmode="decimal" id="qK" value="${v("kcal")}" placeholder="0"><span class="u">kcal</span></div>
     <div class="grid3">${[["prot", "Proteína"], ["carb", "Carbo"], ["gord", "Gordura"]].map(([k, l]) => `<div><label class="f">${l} (g)</label><input type="number" inputmode="decimal" id="q_${k}" value="${v(k)}" placeholder="opcional"></div>`).join("")}</div>
@@ -197,11 +280,17 @@ function quickSheet({entry, meal} = {}){
   $("#mealPick").onclick = ev => { const b = ev.target.closest("[data-m]"); if (!b) return; m = +b.dataset.m; $("#mealPick").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); };
   $("#qSave").onclick = () => {
     const kcal = num($("#qK").value); if (!kcal || kcal <= 0) return $("#qK").focus();
-    const n = Object.fromEntries(NUTS.map(x => [x.k, null])); n.kcal = kcal;
+    const n = e ? {...e.n} : Object.fromEntries(NUTS.map(x => [x.k, null])); n.kcal = kcal;
     for (const k of ["prot", "carb", "gord"]) n[k] = num($("#q_" + k).value);
-    const data = {name: $("#qName").value.trim() || "Adição rápida", grams: null, unit: "", meal: m, n, quick: true};
-    if (e){ Object.assign(e, data); save(); closeSheet(); renderAll(); toast("Salvo"); return; }
-    addEntries([{...data, id: uid(), createdAt: Date.now(), date: curDate}], `Adicionado · ${MEALS[m]}`);
+    const name = $("#qName").value.trim() || "Adição rápida";
+    if (e){
+      const r = x => x == null ? null : Math.round(x * 10) / 10;
+      const changed = ["kcal", "prot", "carb", "gord"].some(k => r(n[k]) !== r(e.n?.[k]));
+      Object.assign(e, {name, meal: m}); // peso, unidade e os outros nutrientes ficam como estavam
+      if (changed){ e.n = n; delete e.est; }
+      save(); closeSheet(); renderAll(); toast("Salvo"); return;
+    }
+    addEntries([{name, grams: null, unit: "", meal: m, n, quick: true, id: uid(), createdAt: Date.now(), date: curDate}], `Adicionado · ${MEALS[m]}`);
   };
   if (e) entryExtras(e);
 }

@@ -79,6 +79,7 @@ function normalize(d){
     profile: obj(d.profile),
     water: obj(d.water),
     combos: arr(d.combos).filter(c => c && Array.isArray(c.items)),
+    train: obj(d.train),
     settings: {...DEFAULT_SETTINGS, ...obj(d.settings)},
   };
 }
@@ -95,6 +96,45 @@ function save(){
 }
 if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
 
+/* ---------- comido × planejado, hábitos, sequência ---------- */
+const eatenEntries = () => S.entries.filter(e => !e.planned);
+function loggedDates(){ return new Set(eatenEntries().map(e => e.date)); }
+/** sequência atual (conta hoje se já registrou, senão termina ontem) e recorde */
+function streaks(dates){
+  const t = today();
+  let cur = 0, d = dates.has(t) ? t : addDays(t, -1);
+  while (dates.has(d)){ cur++; d = addDays(d, -1); }
+  let best = 0, run = 0, prev = null;
+  for (const s of [...dates].sort()){ run = prev && daysBetween(prev, s) === 1 ? run + 1 : 1; best = Math.max(best, run); prev = s; }
+  return {cur, best};
+}
+const TRAIN_TYPES = [["musc", "Musculação", "dumbbell"], ["cardio", "Cardio", "run"], ["esporte", "Esporte", "ball"], ["outro", "Outro", "bolt"]];
+function habitDay(d, logged = loggedDates()){
+  return {train: !!S.train[d], water: (S.water[d] || 0) >= (S.settings.waterGoal || 2000), log: logged.has(d)};
+}
+function habitDates(k){
+  if (k === "train") return new Set(Object.keys(S.train));
+  if (k === "water") return new Set(Object.keys(S.water).filter(d => S.water[d] >= (S.settings.waterGoal || 2000)));
+  return loggedDates();
+}
+
+/* ---------- cru × cozido: rendimento = peso cozido ÷ peso cru ---------- */
+const YIELDS = [
+  [2.8, "Arroz", /\barroz\b/],
+  [2.3, "Massa", /\b(massa|esparguete|spaghetti|macarr|penne|fusilli|talharim|lasanha|cuscuz|couscous|noodle)/],
+  [2.5, "Feijão, grão, lentilha (secos)", /\b(feij|grao|grão|lentilha|ervilha seca|gr[aã]o-de-bico)/],
+  [2.6, "Quinoa, bulgur", /\b(quinoa|quinua|bulgur|trigo)/],
+  [0.75, "Carne vermelha ou moída", /\b(carne|bovin|vaca|novilho|porco|su[ií]n|picad|mo[ií]d|hamb[uú]rguer|burger|almôndega|almondega|lombo|bife)/],
+  [0.7, "Frango ou peru", /\b(frango|galinha|peru|chicken|turkey|aves?)\b/],
+  [0.8, "Peixe", /\b(peixe|salm[aã]o|bacalhau|pescada|atum fresco|dourada|robalo|tilápia|tilapia|merluza)/],
+];
+function guessYield(name){
+  const n = norm(name);
+  if (/\bcozid|\bassad|\bgrelhad|\bfrit|\benlatad|\bem lata|\bao natural/.test(n)) return null; // já está pronto
+  return YIELDS.find(y => y[2].test(n))?.[0] ?? null;
+}
+const productYield = p => !p || p.cooked === 0 ? null : num(p.cooked) || (!p.generic && !p.recipe ? guessYield(p.name) : null);
+
 /* ---------- produtos ---------- */
 const GENERICS = (window.GENERIC_FOODS || []).map((r, i) => ({
   id: "gen-" + i, name: r[0], generic: true, unit: "g",
@@ -103,8 +143,13 @@ const GENERICS = (window.GENERIC_FOODS || []).map((r, i) => ({
 }));
 function getProduct(id){ return S.products[id] || GENERICS.find(g => g.id === id) || null; }
 const entryName = p => p.brand && !p.name.includes(p.brand) ? `${p.name} · ${p.brand}` : p.name;
-function makeEntry(id, p, grams, meal, date){
-  return {id: uid(), createdAt: Date.now(), date, name: entryName(p), grams, unit: p.unit || "g", meal, n: scaleNuts(p.per100, grams), productId: id};
+/** grams = o que foi pesado; cooked = pesado cozido (usa o rendimento do produto pra voltar ao peso cru do rótulo) */
+function makeEntry(id, p, grams, meal, date, {cooked = false, planned = false} = {}){
+  const raw = cooked ? grams / (productYield(p) || 1) : grams;
+  const e = {id: uid(), createdAt: Date.now(), date, name: entryName(p), grams, unit: p.unit || "g", meal, n: scaleNuts(p.per100, raw), productId: id};
+  if (cooked) e.cooked = true;
+  if (planned) e.planned = true;
+  return e;
 }
 function thumb(p, fallback = "🍽️"){
   if (p?.image) return `<img src="${esc(p.image)}" alt="" loading="lazy" class="thumb">`;

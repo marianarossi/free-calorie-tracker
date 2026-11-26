@@ -7,13 +7,14 @@
 /* ---------- adicionar entradas (com desfazer + metas) ---------- */
 function addEntries(list, msg){
   const date = list[0]?.date; if (!date) return;
-  const before = totals(S.entries.filter(e => e.date === date));
+  const before = totals(eatenEntries().filter(e => e.date === date)), bh = habitDay(date), bs = streaks(loggedDates()).cur;
   S.entries.push(...list);
   save(); buzz(); closeSheet(); renderAll();
   const ids = new Set(list.map(e => e.id));
   toast(msg, {label: "Desfazer", fn: () => { S.entries = S.entries.filter(e => !ids.has(e.id)); save(); renderAll(); }});
-  const after = totals(S.entries.filter(e => e.date === date)), gp = S.goals.prot;
+  const after = totals(eatenEntries().filter(e => e.date === date)), gp = S.goals.prot;
   if (gp && before.prot < gp && after.prot >= gp){ setTimeout(() => { celebrate(); toast("Meta de proteína batida! 💪"); }, 900); }
+  else habitCheck(date, bh, bs);
 }
 function removeEntries(ids, msg = "Removido"){
   ids = new Set(ids);
@@ -66,12 +67,22 @@ function productForm(code, p, msg, fixedId, after){
       <div><label class="f">Unidade</label><select id="pUnit"><option value="g">g</option><option value="ml"${p.unit === "ml" ? " selected" : ""}>ml</option></select></div>
       <div><label class="f">Porção do rótulo</label><input type="number" inputmode="decimal" id="pPort" value="${p.portion ?? ""}" placeholder="opcional"></div>
     </div>
+    <label class="f">Rendimento ao cozinhar <small class="muted">(se o rótulo é do alimento cru)</small></label>
+    <select id="pYield">${yieldOptions(p.cooked === 0 ? 0 : num(p.cooked) ?? guessYield(p.name || ""))}</select>
+    <input type="number" inputmode="decimal" step="any" id="pYieldC" class="hidden" placeholder="peso cozido ÷ peso cru, ex: 2,8" style="margin-top:8px">
     <div class="sub" style="margin:14px 0 0">Valores <b>por 100</b> do rótulo</div>
     <div class="grid2">${NUTS.map(n => `<div><label class="f">${esc(n.n)} (${n.u})</label><input type="number" inputmode="decimal" step="any" id="v_${n.k}" value="${p.per100?.[n.k] != null ? Math.round(p.per100[n.k] * 100) / 100 : ""}"></div>`).join("")}</div>
     <div class="warnbox hidden" id="pWarn">Preencha pelo menos o nome e as kcal.</div>
     <div class="row"><button class="btn sec" data-close>Cancelar</button><button class="btn" id="pSave">Salvar</button></div>
     ${code ? `<div class="note">Dica: dá pra adicionar esse produto ao Open Food Facts pelo app oficial deles e ajudar todo mundo.</div>` : ""}`);
   if (!fixedId) setTimeout(() => { if (!$("#pName")?.value) $("#pName")?.focus(); }, 60);
+  let yieldTouched = false;
+  $("#pYield").onchange = () => { yieldTouched = true; $("#pYieldC").classList.toggle("hidden", $("#pYield").value !== "c"); };
+  $("#pName").addEventListener("input", () => { // sugere o rendimento pelo nome enquanto a pessoa não escolheu
+    if (yieldTouched || p.cooked != null) return;
+    const gy = guessYield($("#pName").value), sel = $("#pYield");
+    sel.innerHTML = yieldOptions(gy); $("#pYieldC").classList.toggle("hidden", sel.value !== "c");
+  });
   $("#pSave").onclick = () => {
     const per100 = {}; for (const n of NUTS) per100[n.k] = num($("#v_" + n.k).value);
     const name = $("#pName").value.trim();
@@ -81,9 +92,19 @@ function productForm(code, p, msg, fixedId, after){
     S.products[id] = {...old, ...p, name, per100, unit: $("#pUnit").value, portion: num($("#pPort").value), code: code || null,
       source: old.source === "off" || p.source === "off" || old.source === "off+edit" ? "off+edit" : "manual", hasNutrition: true};
     delete S.products[id].id;
+    const yv = $("#pYield").value, yc = num($("#pYieldC").value);
+    const yieldVal = yv === "c" ? (yc > 0.1 && yc < 6 ? yc : null) : yv === "" ? 0 : +yv;
+    if (yieldVal == null) delete S.products[id].cooked; else S.products[id].cooked = yieldVal;
     save();
     if (after) after(id, S.products[id]); else portionSheet(id, S.products[id]);
   };
+}
+
+function yieldOptions(v){
+  const known = YIELDS.some(y => y[0] === v);
+  return `<option value=""${!v ? " selected" : ""}>Não se aplica (já vem pronto / não cozinha)</option>`
+    + YIELDS.map(([f, l]) => `<option value="${f}"${f === v ? " selected" : ""}>${esc(l)} · ×${fmt(f, 2)}</option>`).join("")
+    + `<option value="c"${v && !known ? " selected" : ""}>Outro…${v && !known ? ` (×${fmt(v, 2)})` : ""}</option>`;
 }
 
 /* ---------- porção ----------
@@ -98,27 +119,36 @@ function portionSheet(id, p, opts = {}){
   const quick = [...units.map(u => ({l: `${u[0]}`, g: u[1]})), ...[50, 100, 150, 200].filter(x => !units.some(u => u[1] === x)).map(x => ({l: `${x} ${unit}`, g: x}))].slice(0, 7);
   const fav = !!getProduct(id)?.fav;
   const date = opts.date || curDate;
+  const yf = opts.pick ? null : productYield(p);
+  let cooked = !!yf && !!(opts.cooked ?? p.lastCooked);
   openSheet(`<div class="phead">${p.image ? `<img src="${esc(p.image)}" alt="">` : thumb(p)}<div class="pt"><h2>${esc(p.name)}</h2>
       <div class="sub" style="margin:0">${p.brand ? esc(p.brand) + " · " : ""}${fmt(num(p.per100?.kcal), 0)} kcal por 100 ${esc(unit)}${p.generic ? " · valor médio" : ""}${p.recipe ? " · receita" : ""}</div>
       ${badges(p) ? `<div class="badges">${badges(p)}</div>` : ""}</div>
       <button class="round star${fav ? " on" : ""}" id="favP" aria-label="Favorito" aria-pressed="${fav}">${icon("star")}</button></div>
-    <label class="f">Quanto?</label>
+    ${yf ? `<div class="ckrow"><label class="f">Quanto? <small class="muted" id="ckHint"></small></label><div class="seg sm" id="ckSeg"><button data-ck="0">Cru</button><button data-ck="1">Cozido</button></div></div>` : `<label class="f">Quanto?</label>`}
     <div class="grams"><button class="round" id="gMinus" aria-label="Menos">${icon("minus")}</button><input type="number" inputmode="decimal" id="gIn" value="${Math.round(grams0 * 10) / 10}"><span class="u">${esc(unit)}</span><button class="round" id="gPlus" aria-label="Mais">${icon("plus")}</button></div>
     <div class="quick" id="quick">${quick.map(q => `<button data-g="${q.g}">${esc(q.l)}${/\d\s*(g|ml)\b/.test(q.l) ? "" : ` · ${fmt(q.g, 0)} ${esc(unit)}`}</button>`).join("")}</div>
     ${opts.pick ? "" : `<label class="f">Refeição${date !== today() ? ` · ${esc(dateLabel(date))}` : ""}</label>
     <div class="quick" id="mealPick">${MEALS.map((m, i) => `<button data-m="${i}" class="${i === meal ? "on" : ""}">${m}</button>`).join("")}</div>`}
     <div class="macrosum" id="msum"></div>
     <details class="ntd"><summary>Tabela nutricional completa</summary><table class="nt" id="ntab"></table></details>
-    <div class="row">${opts.back ? `<button class="btn sec" id="pBack">Voltar</button>` : `<button class="btn sec" data-close>Cancelar</button>`}<button class="btn" id="addE">${opts.pick ? "Adicionar à receita" : opts.entryId ? "Salvar" : "Adicionar"}</button></div>
+    <div class="row">${opts.back ? `<button class="btn sec" id="pBack">Voltar</button>` : `<button class="btn sec" data-close>Cancelar</button>`}<button class="btn" id="addE">${opts.pick ? "Adicionar à receita" : opts.confirm ? `${icon("check")} Comi` : opts.entryId ? "Salvar" : "Adicionar"}</button></div>
+    ${opts.pick || opts.entryId ? "" : `<button class="linkish planlink" id="planE">${icon("cal")} Só planejar (ainda não comi)</button>`}
     ${opts.pick ? "" : `<div class="links">${p.recipe ? `<button class="linkish" id="editR">${icon("edit")} Editar receita</button>`
       : p.generic ? "" : `<button class="linkish" id="editP">${icon("edit")} Corrigir valores</button>`}${p.code && S.products[id] ? `<button class="linkish" id="offR">${icon("refresh")} Atualizar do Open Food Facts</button>` : ""}</div>`}`);
+  const rawOf = g => cooked ? g / yf : g;
   const upd = () => {
-    const g = num($("#gIn").value) || 0, v = scaleNuts(p.per100, g);
+    const g = num($("#gIn").value) || 0, v = scaleNuts(p.per100, rawOf(g));
+    if (yf){
+      $("#ckSeg").querySelectorAll("button").forEach(b => b.classList.toggle("on", +b.dataset.ck === +cooked));
+      $("#ckHint").textContent = cooked ? `≈ ${fmt(rawOf(g), 0)} ${unit} cru (rende ×${fmt(yf, 2)})` : "peso do rótulo";
+    }
     $("#msum").innerHTML = `<div class="mk"><b>${fmt(v.kcal, 0)}</b><span>kcal</span></div>` + [["prot", "Proteína"], ["carb", "Carbo"], ["gord", "Gordura"]].map(([k, l]) =>
       `<div class="mk" style="--c:var(--${k})"><b>${fmt(v[k], 1)}<small>g</small></b><span>${l}</span></div>`).join("");
-    $("#ntab").innerHTML = `<tr><th></th><th>por 100</th><th>${fmt(g, 0)} ${esc(unit)}</th></tr>` + NUTS.map(n => `<tr><td>${n.sub ? "&nbsp;&nbsp;" : ""}${esc(n.n)}</td><td>${fmt(num(p.per100?.[n.k]), n.dec)}</td><td>${fmt(v[n.k], n.dec)} ${n.u}</td></tr>`).join("");
+    $("#ntab").innerHTML = `<tr><th></th><th>por 100${yf ? " cru" : ""}</th><th>${fmt(g, 0)} ${esc(unit)}${cooked ? " cozido" : ""}</th></tr>` + NUTS.map(n => `<tr><td>${n.sub ? "&nbsp;&nbsp;" : ""}${esc(n.n)}</td><td>${fmt(num(p.per100?.[n.k]), n.dec)}</td><td>${fmt(v[n.k], n.dec)} ${n.u}</td></tr>`).join("");
   };
   upd(); $("#gIn").oninput = upd;
+  if (yf) $("#ckSeg").onclick = e => { const b = e.target.closest("[data-ck]"); if (b){ cooked = b.dataset.ck === "1"; upd(); } };
   const nudge = d => { const g = num($("#gIn").value) || 0, st = g >= 100 ? 10 : 5; $("#gIn").value = Math.max(0, Math.round((g + d * st) / st) * st); upd(); };
   $("#gMinus").onclick = () => nudge(-1); $("#gPlus").onclick = () => nudge(1);
   $("#quick").onclick = e => { const g = e.target.closest("[data-g]")?.dataset.g; if (g){ $("#gIn").value = g; upd(); } };
@@ -128,27 +158,38 @@ function portionSheet(id, p, opts = {}){
   if ($("#editP")) $("#editP").onclick = () => productForm(p.code || null, p, "", id);
   if ($("#editR")) $("#editR").onclick = () => editRecipe(id);
   if ($("#offR")) $("#offR").onclick = () => refreshFromOFF(id);
-  $("#addE").onclick = () => {
+  const commit = planned => {
     const g = num($("#gIn").value); if (!g || g <= 0){ $("#gIn").focus(); return; }
     if (opts.pick) return opts.pick(g);
     const cur = getProduct(id) || p; // pode ter virado favorito nesta folha
-    S.products[id] = {...cur, lastGrams: g, lastUsed: Date.now()}; delete S.products[id].id;
+    S.products[id] = {...cur, lastGrams: g, lastUsed: Date.now(), ...(yf ? {lastCooked: cooked} : {})}; delete S.products[id].id;
     if (opts.entryId){
       const e = S.entries.find(x => x.id === opts.entryId);
-      if (e) Object.assign(e, {name: entryName(p), grams: g, unit, meal, n: scaleNuts(p.per100, g), productId: id});
-      save(); buzz(); closeSheet(); renderAll(); toast("Salvo");
+      if (!e) return closeSheet();
+      const bh = habitDay(e.date), bs = streaks(loggedDates()).cur, wasPlanned = !!e.planned;
+      Object.assign(e, {name: entryName(p), grams: g, unit, meal, n: scaleNuts(p.per100, rawOf(g)), productId: id});
+      if (cooked) e.cooked = true; else delete e.cooked;
+      delete e.est;
+      if (opts.confirm){ delete e.planned; e.createdAt = Date.now(); }
+      save(); buzz(); closeSheet(); renderAll();
+      if (opts.confirm){ toast("Confirmado · " + MEALS[meal], {label: "Desfazer", fn: () => { e.planned = true; save(); renderAll(); }}); if (wasPlanned) habitCheck(e.date, bh, bs); }
+      else toast("Salvo");
       return;
     }
-    addEntries([makeEntry(id, p, g, meal, date)], `Adicionado · ${MEALS[meal]}`);
+    const entry = makeEntry(id, p, g, meal, date, {cooked, planned});
+    addEntries([entry], planned ? `Planejado · ${MEALS[meal]}` : `Adicionado · ${MEALS[meal]}`);
   };
+  $("#addE").onclick = () => commit(false);
+  if ($("#planE")) $("#planE").onclick = () => commit(true);
 }
 
 /* ---------- editar entrada ---------- */
-function editEntrySheet(eid){
+function editEntrySheet(eid, extra = {}){
   const e = S.entries.find(x => x.id === eid); if (!e) return;
   const p = e.productId ? getProduct(e.productId) : null;
   if (!p) return quickSheet({entry: e});
-  portionSheet(e.productId, p, {grams: e.grams, meal: e.meal, entryId: eid, date: e.date});
+  portionSheet(e.productId, p, {grams: e.grams, meal: e.meal, entryId: eid, date: e.date, cooked: !!e.cooked, confirm: extra.confirm || false});
+  if (extra.confirm) return;
   $("#sheet .row").insertAdjacentHTML("afterend", `<div class="row three">
     <button class="btn sec" id="dupE">${icon("copy")} Duplicar</button>
     ${e.date !== today() ? `<button class="btn sec" id="todayE">${icon("plus")} Pra hoje</button>` : ""}
