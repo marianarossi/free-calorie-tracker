@@ -6,8 +6,9 @@ let stream = null, scanning = false, scannerOpen = false, detector = null, torch
 let scanMode = null; // "catalog" = só cadastrar produtos (não lança no diário)
 $("#scanBtn").onclick = () => startScanner();
 $("#scanClose").onclick = () => stopScanner();
-$("#scanType").onclick = () => { stopScanner(); typeSheet(); };
-$("#scanPhoto").onclick = () => { stopScanner(); $("#photoInput").value = ""; $("#photoInput").click(); };
+$("#scanType").onclick = () => { stopScanner(true); typeSheet(); };
+$("#scanPhoto").onclick = () => { pickPhoto(); stopScanner(true); };
+function pickPhoto(){ const i = $("#photoInput"); i.value = ""; i.click(); }
 
 async function initDetector(){
   if (detector !== null) return detector;
@@ -117,9 +118,29 @@ function zxDecode(L, w, h){
 }
 
 /* foto (alternativa) */
-function loadImg(file){ return new Promise((res, rej) => { const u = URL.createObjectURL(file); const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = u; }); }
+function loadImg(file){
+  return new Promise((res, rej) => {
+    const u = URL.createObjectURL(file), i = new Image();
+    i.onload = () => { URL.revokeObjectURL(u); res(i); };
+    i.onerror = () => { URL.revokeObjectURL(u); rej(new Error("img")); };
+    i.src = u;
+  });
+}
+/** reduz fotos grandes (iPhone: 12–48 MP) antes de decodificar, pra não estourar a memória */
+async function shrinkPhoto(file, max = 2400){
+  if (window.createImageBitmap){
+    try {
+      const b = await createImageBitmap(file);
+      const s = Math.min(1, max / Math.max(b.width, b.height));
+      const c = document.createElement("canvas"); c.width = Math.round(b.width * s); c.height = Math.round(b.height * s);
+      c.getContext("2d").drawImage(b, 0, 0, c.width, c.height); b.close?.();
+      return await loadImg(await new Promise(r => c.toBlob(r, "image/jpeg", 0.92)));
+    } catch {}
+  }
+  return loadImg(file);
+}
 async function decodePhoto(file){
-  const img = await loadImg(file);
+  const img = await shrinkPhoto(file);
   await initDetector();
   if (detector){ try { const r = await detector.detect(img); if (r[0]) return r[0].rawValue; } catch {} }
   for (const side of [1400, 900, 2200]) for (const rot of [0, 90]){
@@ -137,13 +158,16 @@ async function decodePhoto(file){
 $("#photoInput").onchange = async e => {
   const f = e.target.files[0]; if (!f) return;
   openSheet(`<h2>Lendo o código…</h2><div class="sub"><span class="spin"></span></div>`);
-  let code = null; try { code = await decodePhoto(f); } catch {}
-  if (code) lookup(code); else typeSheet("Não consegui ler o código nessa foto. Tente mais perto e com boa luz, ou digite os números.");
+  let code = null;
+  try { code = await Promise.race([decodePhoto(f), new Promise(r => setTimeout(() => r(null), 15000))]); } catch {}
+  if (code) lookup(code); else typeSheet("Não consegui ler o código nessa foto. Tente uma foto mais perto, reta e com boa luz, ou digite os números.");
 };
 function typeSheet(msg){
   openSheet(`<h2>${scanMode ? "Cadastrar por código" : "Digitar código"}</h2>${msg ? `<div class="warnbox">${esc(msg)}</div>` : `<div class="sub">Os números embaixo das barras.</div>`}
     <form id="cForm"><input type="tel" id="codeIn" inputmode="numeric" placeholder="ex: 5601234567890" autocomplete="off"></form>
-    <div class="row"><button class="btn sec" data-close>Cancelar</button><button class="btn" id="codeGo">Buscar</button></div>`);
+    <div class="row"><button class="btn sec" data-close>Cancelar</button><button class="btn" id="codeGo">Buscar</button></div>
+    <button class="linkish planlink" id="codePhoto">${icon("image")} Escolher foto da galeria</button>`);
+  $("#codePhoto").onclick = pickPhoto;
   const go = () => { const v = $("#codeIn").value.replace(/\D/g, ""); if (v.length >= 6) lookup(v); else $("#codeIn").focus(); };
   $("#codeGo").onclick = go; $("#cForm").onsubmit = e => { e.preventDefault(); go(); };
   setTimeout(() => $("#codeIn")?.focus(), 60);
