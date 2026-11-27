@@ -3,7 +3,8 @@
    SCANNER (câmera ao vivo) + foto + digitar código
    ========================================================= */
 let stream = null, scanning = false, scannerOpen = false, detector = null, torchOn = false;
-$("#scanBtn").onclick = startScanner;
+let scanMode = null; // "catalog" = só cadastrar produtos (não lança no diário)
+$("#scanBtn").onclick = () => startScanner();
 $("#scanClose").onclick = () => stopScanner();
 $("#scanType").onclick = () => { stopScanner(); typeSheet(); };
 $("#scanPhoto").onclick = () => { stopScanner(); $("#photoInput").value = ""; $("#photoInput").click(); };
@@ -19,11 +20,13 @@ async function initDetector(){
   }
   return detector;
 }
-async function startScanner(){
+async function startScanner(mode){
+  scanMode = mode === "catalog" ? "catalog" : null;
   if (sheetOpen) closeSheet();
   if (!navigator.mediaDevices?.getUserMedia){ return typeSheet("Este navegador não libera a câmera. Use uma foto ou digite o código."); }
   $("#scanner").classList.remove("hidden", "found");
-  $("#scanMsg").textContent = "Aponte para o código de barras";
+  $("#scanner").classList.toggle("catalog", !!scanMode);
+  $("#scanMsg").textContent = scanMode ? "Cadastrar produto: aponte para o código" : "Aponte para o código de barras";
   scannerOpen = true; navOpen();
   try {
     stream = await navigator.mediaDevices.getUserMedia({audio: false, video: {facingMode: {ideal: "environment"}, width: {ideal: 1920}, height: {ideal: 1080}}});
@@ -138,7 +141,7 @@ $("#photoInput").onchange = async e => {
   if (code) lookup(code); else typeSheet("Não consegui ler o código nessa foto. Tente mais perto e com boa luz, ou digite os números.");
 };
 function typeSheet(msg){
-  openSheet(`<h2>Digitar código</h2>${msg ? `<div class="warnbox">${esc(msg)}</div>` : `<div class="sub">Os números embaixo das barras.</div>`}
+  openSheet(`<h2>${scanMode ? "Cadastrar por código" : "Digitar código"}</h2>${msg ? `<div class="warnbox">${esc(msg)}</div>` : `<div class="sub">Os números embaixo das barras.</div>`}
     <form id="cForm"><input type="tel" id="codeIn" inputmode="numeric" placeholder="ex: 5601234567890" autocomplete="off"></form>
     <div class="row"><button class="btn sec" data-close>Cancelar</button><button class="btn" id="codeGo">Buscar</button></div>`);
   const go = () => { const v = $("#codeIn").value.replace(/\D/g, ""); if (v.length >= 6) lookup(v); else $("#codeIn").focus(); };

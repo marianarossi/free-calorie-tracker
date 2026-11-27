@@ -1,5 +1,5 @@
 // Service worker: guarda o app pra abrir rápido e offline. A API do Open Food Facts nunca é guardada aqui.
-const CACHE = "meudia-v5";
+const CACHE = "meudia-v6";
 const SHELL = ["./", "index.html", "style.css", "foods.js",
   "js/core.js", "js/food.js", "js/diary.js", "js/scanner.js", "js/weight.js", "js/progress.js", "js/settings.js", "js/sync.js", "js/main.js",
   "vendor/zxing.min.js", "vendor/fonts/bricolage-latin.woff2", "manifest.webmanifest", "icons/icon.svg", "icons/icon-192.png"];

@@ -5,6 +5,7 @@ App web (PWA) pra registrar o que você come e o seu peso, feito pra produtos ve
 **Registrar**
 - **Leitor de código de barras ao vivo** pela câmera do celular (EAN-13/EAN-8/UPC), por foto ou digitando
 - **Informação nutricional automática** do [Open Food Facts](https://world.openfoodfacts.org) (kcal, proteínas, carboidratos, açúcares, gorduras, saturadas, fibras, sal), com selos **Nutri-Score** e **NOVA**
+- **Cadastrar produtos** (Ajustes ou Meus produtos): escaneie o que tem em casa um atrás do outro, confira os valores do Open Food Facts com o rótulo (campos faltando ficam marcados), ajuste nome e marca, sem lançar nada no diário
 - **Busca por nome**: seus produtos, receitas, ~65 alimentos genéricos (fruta, arroz, frango…) e o Open Food Facts
 - **Adição rápida** quando você só sabe as calorias (restaurante, comida de fora)
 - **Favoritos ⭐**, recentes e **combos** (ex: "meu café da manhã de sempre") pra adicionar com um toque

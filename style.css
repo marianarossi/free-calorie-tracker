@@ -550,3 +550,10 @@ html[data-sync=error] #settingsTab::after{content:"";position:absolute;top:8px;r
 .prow div{flex:1;display:flex;flex-direction:column}
 .prow small{color:var(--muted);font-size:12.5px}
 .perleg{display:inline-block;width:12px;height:9px;border-radius:2px;background:var(--per);opacity:.35;vertical-align:-1px}
+
+/* ===== cadastro de produtos ===== */
+.okbox{background:color-mix(in srgb,var(--accent) 12%,transparent);color:var(--ink);border-radius:14px;padding:10px 12px;font-size:14px;margin:8px 0}
+input.miss{border-color:var(--carb);border-style:dashed;background:color-mix(in srgb,var(--carb) 8%,var(--bg))}
+.saved-ill{width:64px;height:64px;border-radius:50%;background:var(--lime);color:#14201A;display:flex;align-items:center;justify-content:center;margin:6px auto 10px}
+.saved-ill .ic{width:32px;height:32px;stroke-width:2.6}
+.scanner.catalog .scan-msg{left:50%;right:auto;transform:translateX(-50%);width:max-content;max-width:90%;background:var(--lime);color:#14201A;text-shadow:none;padding:7px 14px;border-radius:99px;font-size:15px}

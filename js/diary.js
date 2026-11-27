@@ -208,7 +208,7 @@ function renderMeals(list, byDate){
       <span>Escaneie um código de barras, busque um alimento${yl.length ? ` ou repita o que comeu ${relDay(y)}` : ""}.</span>
       <div class="row">${yl.length ? `<button class="btn sec" id="copyDay">${icon("copy")} Repetir ${relDay(y)} · ${fmt(totals(yl).kcal, 0)} kcal</button>` : `<button class="btn sec" id="emptyScan">${icon("scan")} Escanear</button>`}</div></div>`;
     if ($("#copyDay")) $("#copyDay").onclick = () => copyEntries(yl, curDate);
-    if ($("#emptyScan")) $("#emptyScan").onclick = startScanner;
+    if ($("#emptyScan")) $("#emptyScan").onclick = () => startScanner();
   } else $("#dayEmpty").innerHTML = "";
   const byMeal = MEALS.map(() => []);
   for (const e of list) byMeal[e.meal ?? 4].push(e);

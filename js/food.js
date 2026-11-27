@@ -32,6 +32,7 @@ function toggleFav(id){
 /* ---------- consulta por código ---------- */
 async function lookup(code){
   code = String(code).replace(/\D/g, "");
+  if (scanMode === "catalog") return catalogLookup(code);
   const local = S.products[code];
   if (local) return portionSheet(code, local);
   openSheet(`<h2>Procurando…</h2><div class="sub">Código ${esc(code)} · Open Food Facts <span class="spin"></span></div>`);
@@ -45,6 +46,37 @@ async function lookup(code){
         : `<div class="warnbox">Esse código ainda não está no Open Food Facts. Preencha com o rótulo — fica salvo pra próxima.</div>`;
   productForm(code, p || {}, msg);
 }
+/* ---------- cadastrar produtos (despensa): escaneia, confere, salva, próximo ---------- */
+let catalogCount = 0;
+async function catalogLookup(code){
+  const local = S.products[code];
+  if (local) return productForm(code, local, `<div class="okbox">Esse produto já está salvo. Pode editar o nome e os valores.</div>`, code, catalogSaved);
+  openSheet(`<h2>Procurando…</h2><div class="sub">Código ${esc(code)} · Open Food Facts <span class="spin"></span></div>`);
+  let p = null, err = false;
+  try { p = await offProduct(code); } catch { err = true; }
+  if (!sheetOpen) return;
+  const missing = p?.hasNutrition ? NUTS.filter(n => p.per100?.[n.k] == null).map(n => n.n.replace(/^d[ao]s quais /, "").toLowerCase()) : [];
+  const msg = err ? `<div class="warnbox">Sem conexão com o Open Food Facts agora. Preencha com o rótulo (por 100).</div>`
+    : !p ? `<div class="warnbox">Esse código não está no Open Food Facts. Preencha com o rótulo (por 100).</div>`
+    : !p.hasNutrition ? `<div class="warnbox">Achei “${esc(p.name)}”, mas sem tabela nutricional. Preencha com o rótulo (por 100 ${esc(p.unit)}).</div>`
+    : `<div class="okbox">Achei no Open Food Facts. Confira com o rótulo e ajuste o nome como quiser.${missing.length ? ` <b>Faltam: ${esc(missing.join(", "))}</b> (os campos marcados).` : ""}</div>`;
+  productForm(code, p || {}, msg, null, catalogSaved);
+}
+function catalogSaved(id, p){
+  catalogCount++; buzz();
+  const y = productYield(p);
+  openSheet(`<div class="saved-ill">${icon("check")}</div><h2 style="text-align:center">${esc(p.name)} salvo</h2>
+    <div class="sub" style="text-align:center">${p.brand ? esc(p.brand) + " · " : ""}${fmt(num(p.per100?.kcal), 0)} kcal por 100 ${esc(p.unit || "g")}${y ? ` · rótulo cru, rende ×${fmt(y, 2)}` : ""}<br>Aparece na busca e quando você escanear de novo.${catalogCount > 1 ? ` <b>${catalogCount} produtos cadastrados agora.</b>` : ""}</div>
+    <div class="row"><button class="btn sec" id="cDone">Concluir</button><button class="btn" id="cNext">${icon("scan")} Escanear o próximo</button></div>
+    <div class="links"><button class="linkish" id="cType">${icon("keyboard")} Digitar código</button><button class="linkish" id="cNoCode">${icon("edit")} Sem código</button><button class="linkish" id="cAdd">${icon("plus")} Lançar no diário</button></div>`);
+  $("#cNext").onclick = () => startScanner("catalog");
+  $("#cType").onclick = () => { scanMode = "catalog"; typeSheet(); };
+  $("#cNoCode").onclick = () => productForm(null, {}, "", null, catalogSaved);
+  $("#cAdd").onclick = () => { scanMode = null; portionSheet(id, S.products[id]); };
+  $("#cDone").onclick = () => { scanMode = null; catalogCount = 0; myProductsSheet(); };
+}
+function catalogStart(){ catalogCount = 0; startScanner("catalog"); }
+
 async function refreshFromOFF(id){
   const p = S.products[id]; if (!p?.code) return;
   toast("Atualizando do Open Food Facts…");
@@ -63,6 +95,7 @@ function productForm(code, p, msg, fixedId, after){
     <div class="sub">${code ? `Código ${esc(code)}` : "Sem código"}</div>
     ${msg || ""}
     <label class="f">Nome</label><input type="text" id="pName" value="${esc(p.name || "")}" placeholder="ex: Iogurte grego natural">
+    <label class="f">Marca / loja <small class="muted">(opcional)</small></label><input type="text" id="pBrand" value="${esc(p.brand || "")}" placeholder="ex: Milbona (Lidl)">
     <div class="grid2">
       <div><label class="f">Unidade</label><select id="pUnit"><option value="g">g</option><option value="ml"${p.unit === "ml" ? " selected" : ""}>ml</option></select></div>
       <div><label class="f">Porção do rótulo</label><input type="number" inputmode="decimal" id="pPort" value="${p.portion ?? ""}" placeholder="opcional"></div>
@@ -71,7 +104,7 @@ function productForm(code, p, msg, fixedId, after){
     <select id="pYield">${yieldOptions(p.cooked === 0 ? 0 : num(p.cooked) ?? guessYield(p.name || ""))}</select>
     <input type="number" inputmode="decimal" step="any" id="pYieldC" class="hidden" placeholder="peso cozido ÷ peso cru, ex: 2,8" style="margin-top:8px">
     <div class="sub" style="margin:14px 0 0">Valores <b>por 100</b> do rótulo</div>
-    <div class="grid2">${NUTS.map(n => `<div><label class="f">${esc(n.n)} (${n.u})</label><input type="number" inputmode="decimal" step="any" id="v_${n.k}" value="${p.per100?.[n.k] != null ? Math.round(p.per100[n.k] * 100) / 100 : ""}"></div>`).join("")}</div>
+    <div class="grid2">${NUTS.map(n => `<div><label class="f">${esc(n.n)} (${n.u})</label><input type="number" inputmode="decimal" step="any" id="v_${n.k}" value="${p.per100?.[n.k] != null ? Math.round(p.per100[n.k] * 100) / 100 : ""}"${p.hasNutrition && p.per100?.[n.k] == null ? ' class="miss"' : ""}></div>`).join("")}</div>
     <div class="warnbox hidden" id="pWarn">Preencha pelo menos o nome e as kcal.</div>
     <div class="row"><button class="btn sec" data-close>Cancelar</button><button class="btn" id="pSave">Salvar</button></div>
     ${code ? `<div class="note">Dica: dá pra adicionar esse produto ao Open Food Facts pelo app oficial deles e ajudar todo mundo.</div>` : ""}`);
@@ -89,7 +122,7 @@ function productForm(code, p, msg, fixedId, after){
     if (!name || per100.kcal == null){ $("#pWarn").classList.remove("hidden"); return; }
     const id = fixedId || code || "my-" + uid();
     const old = S.products[id] || {};
-    S.products[id] = {...old, ...p, name, per100, unit: $("#pUnit").value, portion: num($("#pPort").value), code: code || null,
+    S.products[id] = {...old, ...p, name, brand: $("#pBrand").value.trim() || null, per100, unit: $("#pUnit").value, portion: num($("#pPort").value), code: code || null,
       source: old.source === "off" || p.source === "off" || old.source === "off+edit" ? "off+edit" : "manual", hasNutrition: true};
     delete S.products[id].id;
     const yv = $("#pYield").value, yc = num($("#pYieldC").value);
@@ -269,6 +302,8 @@ function resRow(p){
 /* ---------- meus produtos ---------- */
 function myProductsSheet(){
   openSheet(`<h2>Meus produtos</h2><div class="sub">Tudo que você já escaneou, criou ou favoritou. Apagar um produto não mexe no que já está no diário.</div>
+    <button class="promo" id="mpScan">${icon("scan")}<span><b>Cadastrar produtos</b><small>escaneie o que tem em casa e confira o rótulo, sem lançar no diário</small></span>${icon("right")}</button>
+    <div class="links" style="margin-bottom:6px"><button class="linkish" id="mpType">${icon("keyboard")} Digitar código</button><button class="linkish" id="mpNoCode">${icon("edit")} Produto sem código</button></div>
     <form class="sfield" onsubmit="return false">${icon("search")}<input type="search" id="mpIn" placeholder="Filtrar…" autocomplete="off"></form>
     <div id="mpList" class="results"></div>
     ${S.combos.length ? `<div class="sec-title">Combos</div><div class="results">${S.combos.map(c => `<div class="res" data-cid="${esc(c.id)}"><div class="thumb">${icon("layers")}</div><div class="nm"><div>${esc(c.name)}</div><small>${c.items.length} itens · ${fmt(c.items.reduce((s, x) => s + (num(x.n?.kcal) || 0), 0), 0)} kcal</small></div><button class="round sm" data-delc="${esc(c.id)}" aria-label="Apagar combo">${icon("trash")}</button></div>`).join("")}</div>` : ""}
@@ -285,6 +320,9 @@ function myProductsSheet(){
   };
   list(); $("#mpIn").oninput = list;
   $("#mpRecipe").onclick = () => newRecipe();
+  $("#mpScan").onclick = catalogStart;
+  $("#mpType").onclick = () => { catalogCount = 0; scanMode = "catalog"; typeSheet(); };
+  $("#mpNoCode").onclick = () => { catalogCount = 0; productForm(null, {}, "", null, catalogSaved); };
   $("#sheet").onclick = e => {
     const f = e.target.closest("[data-fav]"); if (f){ toggleFav(f.dataset.fav); buzz(); return list(); }
     const d = e.target.closest("[data-del]");

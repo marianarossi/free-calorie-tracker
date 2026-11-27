@@ -61,6 +61,7 @@ function settingsSheet(){
     <div class="sec-title">Aparência</div>
     <div class="seg" id="themeSeg">${[["auto", "Automático"], ["light", "Claro"], ["dark", "Escuro"]].map(([k, l]) => `<button data-th="${k}" class="${st.theme === k ? "on" : ""}">${l}</button>`).join("")}</div>
     <div class="sec-title">Seus alimentos</div>
+    <button class="promo alt" id="openCatalog">${icon("scan")}<span><b>Cadastrar produtos</b><small>escaneie o que você tem em casa pra lançar mais rápido depois</small></span>${icon("right")}</button>
     <div class="row"><button class="btn sec" id="openMine">${icon("box")} Meus produtos</button><button class="btn sec" id="openRecipe">${icon("pot")} Nova receita</button></div>
     <div class="sec-title">Sincronização</div>
     <button class="promo alt" id="syncBtn">${icon("refresh")}<span><b>${syncReady() ? "Sincronizando com o GitHub" : "Sincronizar com o GitHub"}</b><small id="syncStatus">${syncStatusHTML()}</small></span>${icon("right")}</button>
@@ -86,6 +87,7 @@ function settingsSheet(){
     $("#themeSeg").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
   };
   $("#openMine").onclick = myProductsSheet;
+  $("#openCatalog").onclick = catalogStart;
   $("#openRecipe").onclick = () => newRecipe();
   $("#exp").onclick = exportData;
   $("#imp").onclick = () => { $("#importInput").value = ""; $("#importInput").click(); };
